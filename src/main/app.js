@@ -5,6 +5,7 @@ const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows, showDas
 const { registerIpcHandlers } = require("./ipc");
 const { restoreWindowsTaskbar } = require("./utils/taskbar");
 const { configureCaptureSession } = require("./capture/session");
+const { closeMongoConnection } = require("./mongodb/chat-history");
 
 function loadEnvFile() {
   const envPath = path.join(__dirname, "../../.env");
@@ -103,4 +104,8 @@ app.on("window-all-closed", (event) => {
 app.on("before-quit", () => {
   isQuitting = true;
   cleanupWindows();
+});
+
+app.on("will-quit", () => {
+  closeMongoConnection().catch(() => {});
 });

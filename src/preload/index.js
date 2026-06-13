@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld("geminiChat", {
   step: (payload) => ipcRenderer.invoke("chat:step", payload),
 });
 
+contextBridge.exposeInMainWorld("chatHistory", {
+  list: (payload) => ipcRenderer.invoke("chat-history:list", payload),
+  save: (payload) => ipcRenderer.invoke("chat-history:save", payload),
+  clear: (payload) => ipcRenderer.invoke("chat-history:clear", payload),
+});
+
 contextBridge.exposeInMainWorld("chatWindow", {
   hide: () => ipcRenderer.invoke("window:hide-chat"),
   minimize: () => ipcRenderer.invoke("window:minimize-chat"),

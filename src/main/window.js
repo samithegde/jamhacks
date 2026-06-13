@@ -795,6 +795,7 @@ module.exports = {
   toggleChatWindow,
   sendToRenderer,
   sendOverlayPointAction,
+  setOverlaysInteractive,
   setOverlayAccessibilityPreferences,
   getOverlayAccessibilityPreferences,
   DASHBOARD_ENABLED,
