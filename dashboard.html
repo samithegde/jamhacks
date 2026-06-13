@@ -433,6 +433,19 @@
         <div class="top-bar">
             <div class="top-bar-title" id="pageTitle">Dashboard</div>
             <div id="error" class="error-box" style="display: none; margin: 0; position: absolute; bottom: 10px; right: 30px; width: auto;"></div>
+            <div class="top-bar-actions">
+                <button class="window-btn minimize-btn" onclick="minimizeWindow()" title="Minimize">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <button class="window-btn close-btn" onclick="closeWindow()" title="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div class="content-area" id="contentArea">
