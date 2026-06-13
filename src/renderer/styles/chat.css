@@ -29,6 +29,11 @@
   color: var(--color-on-background);
 }
 
+.chat-window-body.chat-window-resizing {
+  cursor: nwse-resize;
+  user-select: none;
+}
+
 .glass-panel {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(124, 58, 237, 0.05)),
@@ -92,6 +97,31 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 25px 50px -12px rgba(0, 0, 0, 0.48);
 
   overflow: hidden;
+}
+
+.ai-widget::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 55%, rgba(255, 255, 255, 0.28) 56%, rgba(255, 255, 255, 0.28) 62%, transparent 63%),
+    linear-gradient(135deg, transparent 70%, rgba(255, 255, 255, 0.2) 71%, rgba(255, 255, 255, 0.2) 77%, transparent 78%);
+  opacity: 0.8;
+}
+
+.chat-resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  cursor: nwse-resize;
+  -webkit-app-region: no-drag;
 }
 
 .chat-header {

@@ -1,6 +1,7 @@
 const {
   hideChatWindow,
   minimizeChatWindow,
+  resizeChatWindow,
   restoreChatWindow,
 } = require("../window");
 
@@ -17,6 +18,11 @@ function registerWindowIpc(ipcMain) {
 
   ipcMain.handle("window:restore-chat", () => {
     restoreChatWindow();
+    return { ok: true };
+  });
+
+  ipcMain.handle("window:resize-chat", (_event, size) => {
+    resizeChatWindow(size);
     return { ok: true };
   });
 }

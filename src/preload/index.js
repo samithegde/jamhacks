@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("geminiChat", {
 contextBridge.exposeInMainWorld("chatWindow", {
   hide: () => ipcRenderer.invoke("window:hide-chat"),
   minimize: () => ipcRenderer.invoke("window:minimize-chat"),
+  resizeTo: (width, height) =>
+    ipcRenderer.invoke("window:resize-chat", { width, height }),
 });
 
 contextBridge.exposeInMainWorld("minichat", {
