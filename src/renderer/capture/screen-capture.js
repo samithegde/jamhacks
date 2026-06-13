@@ -63,6 +63,20 @@ export class ScreenCaptureService {
     this.running = false;
   }
 
+  async waitForVideoReady(timeoutMs = 3000) {
+    if (!this.video) return false;
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    return this.video.videoWidth > 0 && this.video.videoHeight > 0;
+  }
+
   captureFrame(options = {}) {
     if (!this.running || !this.video || !this.ctx) {
       return null;
@@ -87,6 +101,19 @@ export class ScreenCaptureService {
       sourceName: this.sourceName,
       dataUrl: this.canvas.toDataURL("image/jpeg", options.quality ?? 0.72),
     };
+  }
+
+  async captureFrameAsync(options = {}) {
+    if (!this.running) {
+      return null;
+    }
+
+    const ready = await this.waitForVideoReady(options.timeoutMs);
+    if (!ready) {
+      return null;
+    }
+
+    return this.captureFrame(options);
   }
 
   getStatus() {

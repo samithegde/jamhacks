@@ -92,7 +92,7 @@ function createChatWindow() {
   chatWindow = new BrowserWindow({
     ...chatBounds,
     show: false,
-    transparent: false,
+    transparent: true,
     frame: false,
     resizable: false,
     movable: true,
@@ -100,9 +100,9 @@ function createChatWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     autoHideMenuBar: true,
-    hasShadow: false,
-    backgroundColor: "#0f172a",
-    ...(process.platform === "win32" ? { thickFrame: false, roundedCorners: false } : {}),
+    hasShadow: true,
+    backgroundColor: "#00000000",
+    ...(process.platform === "win32" ? { thickFrame: false } : {}),
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       nodeIntegration: false,

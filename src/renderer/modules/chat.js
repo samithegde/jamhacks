@@ -1,4 +1,16 @@
 import { getCaptureServices } from "./capture-service.js";
+import { renderMarkdown } from "./markdown.js";
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
+const TEXT_EXTENSIONS = new Set([
+  ".txt", ".md", ".json", ".js", ".ts", ".jsx", ".tsx", ".py", ".java",
+  ".c", ".cpp", ".h", ".css", ".html", ".xml", ".yaml", ".yml", ".csv",
+  ".rs", ".go", ".sh", ".rb", ".php", ".swift", ".kt", ".sql",
+]);
+const INLINE_MIME_PREFIXES = ["image/", "audio/", "video/"];
+const INLINE_MIME_TYPES = new Set(["application/pdf"]);
+const TTS_ENABLED = false;
 
 const messages = [
   {
@@ -11,6 +23,196 @@ let mediaRecorder = null;
 let recordingStream = null;
 let recordedChunks = [];
 let isTranscribing = false;
+let pendingAttachments = [];
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileExtension(name = "") {
+  const dot = name.lastIndexOf(".");
+  return dot === -1 ? "" : name.slice(dot).toLowerCase();
+}
+
+function resolveMimeType(file) {
+  if (file.type) return file.type;
+
+  const ext = getFileExtension(file.name);
+  const map = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".json": "application/json",
+    ".js": "text/javascript",
+    ".ts": "text/typescript",
+    ".css": "text/css",
+    ".html": "text/html",
+    ".csv": "text/csv",
+    ".xml": "application/xml",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+  };
+
+  return map[ext] || "application/octet-stream";
+}
+
+function isTextAttachment(mimeType, name) {
+  if (mimeType.startsWith("text/")) return true;
+  if (mimeType === "application/json" || mimeType === "application/javascript") return true;
+  if (mimeType === "application/xml" || mimeType === "application/yaml") return true;
+  return TEXT_EXTENSIONS.has(getFileExtension(name));
+}
+
+function isInlineAttachment(mimeType) {
+  if (INLINE_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix))) return true;
+  return INLINE_MIME_TYPES.has(mimeType);
+}
+
+function getAttachmentIcon(mimeType) {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("audio/")) return "audio_file";
+  if (mimeType.startsWith("video/")) return "movie";
+  if (mimeType === "application/pdf") return "picture_as_pdf";
+  return "description";
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Failed to read file."));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolve(comma === -1 ? result : result.slice(comma + 1));
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsText(file);
+  });
+}
+
+async function fileToAttachment(file) {
+  const mimeType = resolveMimeType(file);
+
+  if (isTextAttachment(mimeType, file.name)) {
+    const textContent = await readFileAsText(file);
+    return {
+      id: crypto.randomUUID(),
+      name: file.name,
+      mimeType,
+      size: file.size,
+      textContent,
+    };
+  }
+
+  if (!isInlineAttachment(mimeType)) {
+    throw new Error(`${file.name} is not a supported file type.`);
+  }
+
+  const base64 = await readFileAsBase64(file);
+  return {
+    id: crypto.randomUUID(),
+    name: file.name,
+    mimeType,
+    size: file.size,
+    base64,
+    previewUrl: mimeType.startsWith("image/") ? URL.createObjectURL(file) : null,
+  };
+}
+
+function renderAttachmentChip(attachment, { removable = false } = {}) {
+  const thumb = attachment.previewUrl
+    ? `<img class="attachment-chip-thumb" src="${attachment.previewUrl}" alt="" />`
+    : `<div class="attachment-chip-icon"><span class="material-symbols-outlined">${getAttachmentIcon(attachment.mimeType)}</span></div>`;
+
+  const removeButton = removable
+    ? `<button class="attachment-chip-remove" type="button" data-attachment-id="${attachment.id}" aria-label="Remove ${escapeHtml(attachment.name)}">
+        <span class="material-symbols-outlined">close</span>
+      </button>`
+    : "";
+
+  return `
+    <div class="attachment-chip" data-attachment-id="${attachment.id}">
+      ${thumb}
+      <div class="attachment-chip-info">
+        <span class="attachment-chip-name">${escapeHtml(attachment.name)}</span>
+        <span class="attachment-chip-size">${formatFileSize(attachment.size)}</span>
+      </div>
+      ${removeButton}
+    </div>
+  `;
+}
+
+function renderMessageAttachments(attachments = []) {
+  if (!attachments.length) return "";
+
+  const items = attachments
+    .map((attachment) => {
+      const thumb = attachment.previewUrl
+        ? `<img class="message-attachment-thumb" src="${attachment.previewUrl}" alt="" />`
+        : `<span class="material-symbols-outlined">${getAttachmentIcon(attachment.mimeType)}</span>`;
+
+      return `
+        <div class="message-attachment">
+          ${thumb}
+          <span>${escapeHtml(attachment.name)}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `<div class="message-attachments">${items}</div>`;
+}
+
+function renderAttachmentPreview(previewEl) {
+  if (!pendingAttachments.length) {
+    previewEl.innerHTML = "";
+    previewEl.classList.add("hidden");
+    return;
+  }
+
+  previewEl.innerHTML = pendingAttachments
+    .map((attachment) => renderAttachmentChip(attachment, { removable: true }))
+    .join("");
+  previewEl.classList.remove("hidden");
+}
+
+function clearPendingAttachments() {
+  for (const attachment of pendingAttachments) {
+    if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+  }
+  pendingAttachments = [];
+}
+
+function removePendingAttachment(id) {
+  const index = pendingAttachments.findIndex((attachment) => attachment.id === id);
+  if (index === -1) return;
+
+  const [removed] = pendingAttachments.splice(index, 1);
+  if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+}
 
 function escapeHtml(text) {
   return text
@@ -19,6 +221,45 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function dataUrlToBase64(dataUrl) {
+  const comma = dataUrl.indexOf(",");
+  return comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
+}
+
+function screenFrameToAttachment(frame) {
+  const base64 = dataUrlToBase64(frame.dataUrl);
+
+  return {
+    id: crypto.randomUUID(),
+    name: frame.sourceName
+      ? `Screen: ${frame.sourceName}`
+      : `Screen (${frame.width}x${frame.height})`,
+    mimeType: "image/jpeg",
+    size: Math.ceil(base64.length * 0.75),
+    base64,
+    previewUrl: frame.dataUrl,
+  };
+}
+
+async function captureScreenAttachment() {
+  try {
+    const { screenCapture } = getCaptureServices();
+
+    if (!screenCapture.running) {
+      const sources = await screenCapture.listSources({ types: ["screen"] });
+      if (!sources.length) return null;
+      await screenCapture.start({ sourceId: sources[0].id });
+    }
+
+    const frame = await screenCapture.captureFrameAsync({ quality: 0.65 });
+    if (!frame) return null;
+
+    return screenFrameToAttachment(frame);
+  } catch {
+    return null;
+  }
 }
 
 function formatMessageTime(date = new Date()) {
@@ -30,10 +271,19 @@ function renderMessageMarkup(msg) {
   const groupClass = isUser ? "message-group message-group--user" : "message-group message-group--ai";
   const bubbleClass = isUser ? "user-bubble message-bubble" : "ai-bubble message-bubble";
   const time = msg.time ? formatMessageTime(msg.time) : formatMessageTime();
+  const attachmentsMarkup = renderMessageAttachments(msg.attachments);
+  const textMarkup = msg.text
+    ? isUser
+      ? `<div>${escapeHtml(msg.text)}</div>`
+      : renderMarkdown(msg.text)
+    : "";
 
   return `
     <div class="${groupClass}">
-      <div class="${bubbleClass}">${escapeHtml(msg.text)}</div>
+      <div class="${bubbleClass}">
+        ${attachmentsMarkup}
+        ${textMarkup}
+      </div>
       <span class="message-time">${time}</span>
     </div>
   `;
@@ -206,11 +456,86 @@ async function stopMicRecording(messagesEl, typingIndicator, chatInput, micButto
   }
 }
 
+async function askGemini() {
+  if (!window.geminiChat?.send) {
+    throw new Error("Gemini bridge unavailable. Restart the app after preload updates.");
+  }
+
+  const history = messages
+    .filter((msg) => msg.sender === "user" || (msg.sender === "system" && msg.rawResponse))
+    .map(({ text, sender, attachments, rawResponse }) => ({
+      text: sender === "system" && rawResponse ? rawResponse : text,
+      sender,
+      attachments: attachments?.map(({ name, mimeType, base64, textContent }) => ({
+        name,
+        mimeType,
+        base64,
+        textContent,
+      })),
+    }));
+
+  return window.geminiChat.send({ history });
+}
+
+function speakExplanation(text) {
+  if (!TTS_ENABLED || !text || !window.speechSynthesis) return;
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  window.speechSynthesis.speak(utterance);
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function executeGeminiPlan(plan) {
+  if (!Array.isArray(plan) || !plan.length || !window.aiTools) return;
+
+  await window.aiTools.setCursorVisible(true);
+  await window.aiTools.clearHighlights();
+
+  for (const step of plan) {
+    await window.aiTools.moveCursor({
+      x: step.x,
+      y: step.y,
+      animate: true,
+      duration: 350,
+    });
+    await window.aiTools.highlightRect({
+      x: step.x,
+      y: step.y,
+      width: step.w,
+      height: step.h,
+      duration: 5000,
+    });
+    await delay(400);
+  }
+}
+
 async function handleAiCommand(text) {
   try {
-    return await runCommand(text);
+    const commandReply = await runCommand(text);
+    if (commandReply) return { text: commandReply };
+
+    const response = await askGemini();
+    const explanation = (response?.explanation || "").trim();
+    const plan = Array.isArray(response?.plan) ? response.plan : [];
+
+    if (!explanation) {
+      throw new Error("Gemini returned an empty explanation.");
+    }
+
+    speakExplanation(explanation);
+    await executeGeminiPlan(plan);
+
+    return {
+      text: explanation,
+      plan,
+      rawResponse: response?.text || JSON.stringify({ explanation, plan }),
+    };
   } catch (error) {
-    return `Capture error: ${error.message}`;
+    return { text: `AI error: ${error.message}` };
   }
 }
 
@@ -303,6 +628,9 @@ export function initChat() {
   const chatForm = document.getElementById("chat-form");
   const chatInput = document.getElementById("chat-input");
   const micButton = document.getElementById("mic-button");
+  const attachButton = document.getElementById("attach-button");
+  const fileInput = document.getElementById("file-input");
+  const attachmentPreview = document.getElementById("attachment-preview");
   const closeButton = document.getElementById("close-button");
   const minimizeButton = document.getElementById("minimize-button");
   const typingIndicator = document.getElementById("typing-indicator");
@@ -316,25 +644,103 @@ export function initChat() {
   closeButton?.addEventListener("click", hideChatWindow);
   minimizeButton?.addEventListener("click", hideChatWindow);
 
+  attachButton?.addEventListener("click", () => {
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener("change", async () => {
+    const selectedFiles = Array.from(fileInput.files || []);
+    fileInput.value = "";
+
+    if (!selectedFiles.length) return;
+
+    const slotsLeft = MAX_ATTACHMENTS - pendingAttachments.length;
+    if (slotsLeft <= 0) {
+      pushSystemMessage(messagesEl, typingIndicator, `You can attach up to ${MAX_ATTACHMENTS} files.`);
+      return;
+    }
+
+    const filesToAdd = selectedFiles.slice(0, slotsLeft);
+    if (selectedFiles.length > slotsLeft) {
+      pushSystemMessage(
+        messagesEl,
+        typingIndicator,
+        `Only ${slotsLeft} more file${slotsLeft === 1 ? "" : "s"} can be attached.`
+      );
+    }
+
+    for (const file of filesToAdd) {
+      if (file.size > MAX_FILE_SIZE) {
+        pushSystemMessage(
+          messagesEl,
+          typingIndicator,
+          `${file.name} is too large. Max size is ${formatFileSize(MAX_FILE_SIZE)}.`
+        );
+        continue;
+      }
+
+      try {
+        const attachment = await fileToAttachment(file);
+        pendingAttachments.push(attachment);
+      } catch (error) {
+        pushSystemMessage(messagesEl, typingIndicator, error.message);
+      }
+    }
+
+    renderAttachmentPreview(attachmentPreview);
+    chatInput.focus();
+  });
+
+  attachmentPreview?.addEventListener("click", (event) => {
+    const button = event.target.closest(".attachment-chip-remove");
+    if (!button?.dataset.attachmentId) return;
+
+    removePendingAttachment(button.dataset.attachmentId);
+    renderAttachmentPreview(attachmentPreview);
+  });
+
   chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const text = chatInput.value.trim();
-    if (!text) return;
+    const fileAttachments = pendingAttachments.map((attachment) => ({ ...attachment }));
+
+    if (!text && !fileAttachments.length) return;
 
     chatInput.value = "";
-    messages.push({ text, sender: "user", time: new Date() });
-    renderMessages(messagesEl, typingIndicator);
+    clearPendingAttachments();
+    renderAttachmentPreview(attachmentPreview);
 
     showTypingIndicator(typingIndicator);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const screenAttachment = await captureScreenAttachment();
+    const attachments = [
+      ...fileAttachments,
+      ...(screenAttachment ? [screenAttachment] : []),
+    ];
+
+    if (!text && !attachments.length) {
+      hideTypingIndicator(typingIndicator);
+      return;
+    }
+
+    messages.push({ text, sender: "user", time: new Date(), attachments });
+    renderMessages(messagesEl, typingIndicator);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     const aiReply = await handleAiCommand(text);
 
     hideTypingIndicator(typingIndicator);
 
-    if (aiReply) {
-      messages.push({ text: aiReply, sender: "system", time: new Date() });
+    if (aiReply?.text) {
+      messages.push({
+        text: aiReply.text,
+        sender: "system",
+        time: new Date(),
+        plan: aiReply.plan,
+        rawResponse: aiReply.rawResponse,
+      });
       renderMessages(messagesEl, typingIndicator);
     }
 

@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld("whisper", {
   transcribe: (payload) => ipcRenderer.invoke("whisper:transcribe", payload),
 });
 
+contextBridge.exposeInMainWorld("geminiChat", {
+  send: (payload) => ipcRenderer.invoke("chat:send", payload),
+});
+
 contextBridge.exposeInMainWorld("chatWindow", {
   hide: () => ipcRenderer.invoke("window:hide-chat"),
 });

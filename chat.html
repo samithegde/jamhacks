@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' blob: mediastream:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' blob: mediastream:; img-src 'self' blob: data:"
     />
     <title>JAMHacks AI Assistant</title>
     <link rel="stylesheet" href="src/renderer/styles/base.css" />
@@ -72,14 +72,24 @@
       </main>
 
       <footer class="chat-footer">
+        <div id="attachment-preview" class="attachment-preview hidden" aria-live="polite"></div>
         <form id="chat-form" class="chat-form">
           <div class="chat-input-wrap">
+            <input
+              id="file-input"
+              type="file"
+              class="file-input-hidden"
+              multiple
+              accept="image/*,audio/*,video/*,application/pdf,text/*,.txt,.md,.json,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.csv,.rs,.go,.sh"
+              aria-hidden="true"
+              tabindex="-1"
+            />
             <button
+              id="attach-button"
               class="input-icon-button"
               type="button"
               title="Attach file"
               aria-label="Attach file"
-              disabled
             >
               <span class="material-symbols-outlined">attach_file</span>
             </button>
