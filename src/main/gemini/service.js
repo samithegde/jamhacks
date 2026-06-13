@@ -49,7 +49,7 @@ const RESPONSE_SCHEMA = {
           isFinal: {
             type: "BOOLEAN",
             description:
-              "True when this is the last on-screen action for the user's goal. The user will see a Complete button instead of Next Step.",
+              "True when this is the last on-screen action for the user's goal. The user will see a Complete button instead of advancing by clicking the target area.",
           },
         },
         required: ["action", "x", "y", "description"],

@@ -27,6 +27,14 @@
       <div id="ai-step-widget" class="ai-step-widget hidden" aria-live="polite">
         <div class="ai-step-widget__tail"></div>
         <div class="ai-step-widget__card">
+          <button
+            id="ai-cancel-btn"
+            class="ai-step-widget__close"
+            type="button"
+            aria-label="Cancel guided prompt"
+          >
+            x
+          </button>
           <div class="ai-step-widget__header">
             <span class="ai-step-widget__icon" aria-hidden="true">✦</span>
             <span id="ai-step-widget-badge" class="ai-step-widget__badge"></span>
@@ -36,14 +44,8 @@
       </div>
     </div>
     <div id="ai-prompt-controls" class="ai-prompt-controls hidden">
-      <button id="ai-next-btn" class="ai-next-btn" type="button">
-        Next Step
-      </button>
       <button id="ai-complete-btn" class="ai-complete-btn hidden" type="button">
         Complete
-      </button>
-      <button id="ai-cancel-btn" class="ai-cancel-btn" type="button">
-        Cancel
       </button>
     </div>
     <script type="module" src="../index.js"></script>
