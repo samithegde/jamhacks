@@ -1,7 +1,7 @@
 {
-  "name": "jamhacks",
+  "name": "clarity",
   "version": "1.0.0",
-  "description": "Jamhacks overlay desktop app",
+  "description": "Clarity overlay desktop app",
   "main": "main.js",
   "scripts": {
     "dev": "electron .",

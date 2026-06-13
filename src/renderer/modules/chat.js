@@ -14,7 +14,7 @@ const TTS_ENABLED = false;
 
 const messages = [
   {
-    text: "Hey there! I'm your JAMHacks AI. Ready to build something epic? I can help with API questions, schedule info, or finding team members!",
+    text: "Hey there! I'm your Clarity AI. Ready to help you understand your screen, plan next steps, and keep moving.",
     sender: "system",
   },
 ];

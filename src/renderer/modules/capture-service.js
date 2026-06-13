@@ -18,6 +18,6 @@ export function getCaptureServices() {
 
 export function initCaptureServices() {
   const services = getCaptureServices();
-  window.__jamhacksCapture = services;
+  window.__clarityCapture = services;
   return services;
 }

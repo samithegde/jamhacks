@@ -11,6 +11,7 @@ let preferences = { ...DEFAULT_PREFERENCES };
 let recognition = null;
 let audioContext = null;
 let magnifierAnimationFrame = null;
+let currentSpeechAudio = null;
 
 export function initAccessibilityOverlay() {
   applyPreferences(preferences);
@@ -36,17 +37,59 @@ export function getAccessibilityPreferences() {
   return { ...preferences };
 }
 
-export function announceAccessibilityMessage(message) {
+export async function announceAccessibilityMessage(message) {
   playAudioCue(660);
   if (!preferences.screenReader) return;
   const text = String(message ?? "").replace(/\s+/g, " ").trim();
-  if (!text || !("speechSynthesis" in window)) return;
+  if (!text) return;
 
+  try {
+    await playElevenLabsSpeech(text);
+    return;
+  } catch (error) {
+    console.warn("ElevenLabs accessibility speech failed:", error);
+  }
+
+  playBrowserSpeech(text);
+}
+
+async function playElevenLabsSpeech(text) {
+  if (!window.aiTools?.speakAccessibility) {
+    throw new Error("ElevenLabs speech bridge is unavailable.");
+  }
+
+  stopCurrentSpeechAudio();
+  window.speechSynthesis?.cancel?.();
+
+  const audio = await window.aiTools.speakAccessibility(text);
+  if (!audio?.base64) {
+    throw new Error("ElevenLabs returned no audio.");
+  }
+
+  const mimeType = audio.mimeType || "audio/mpeg";
+  currentSpeechAudio = new Audio(`data:${mimeType};base64,${audio.base64}`);
+  currentSpeechAudio.onended = () => {
+    currentSpeechAudio = null;
+  };
+  await currentSpeechAudio.play();
+}
+
+function playBrowserSpeech(text) {
+  if (!("speechSynthesis" in window)) return;
+
+  stopCurrentSpeechAudio();
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.95;
   utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
+}
+
+function stopCurrentSpeechAudio() {
+  if (!currentSpeechAudio) return;
+  currentSpeechAudio.pause();
+  currentSpeechAudio.currentTime = 0;
+  currentSpeechAudio = null;
 }
 
 export function playAudioCue(frequency = 520) {

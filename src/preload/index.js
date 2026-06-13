@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld("aiTools", {
   ensureOverlay: () => ipcRenderer.invoke("show-overlay"),
   getAccessibilityPreferences: () =>
     ipcRenderer.invoke("accessibility:get-preferences"),
+  speakAccessibility: (text) => ipcRenderer.invoke("elevenlabs:speak", { text }),
   moveCursor: (payload) => ipcRenderer.invoke("ai-tools:cursor-move", payload),
   setCursorVisible: (visible) =>
     ipcRenderer.invoke("ai-tools:cursor-set-visible", visible),

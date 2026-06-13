@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clarity Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet"
+    />
     <style>
         * {
             margin: 0;
@@ -84,11 +88,44 @@
         }
 
         .nav-icon {
-            width: 18px;
-            height: 18px;
-            display: flex;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            color: #8f8f98;
+            flex-shrink: 0;
+            font-size: 0;
+        }
+
+        .nav-icon .material-symbols-outlined {
+            font-size: 19px;
+            font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+            line-height: 1;
+        }
+
+        .nav-icon::before {
+            font-family: "Material Symbols Outlined";
+            font-size: 19px;
+            font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+            line-height: 1;
+        }
+
+        .nav-item[onclick*="dashboard"] .nav-icon::before { content: "space_dashboard"; }
+        .nav-item[onclick*="overlay"] .nav-icon::before { content: "layers"; }
+        .nav-item[onclick*="displays"] .nav-icon::before { content: "desktop_windows"; }
+        .nav-item[onclick*="chat"] .nav-icon::before { content: "chat_bubble"; }
+        .nav-item[onclick*="streaks"] .nav-icon::before { content: "local_fire_department"; }
+        .nav-item[onclick*="accessibility"] .nav-icon::before { content: "accessibility_new"; }
+        .nav-item[onclick*="showSettings"] .nav-icon::before { content: "settings"; }
+        .nav-item[onclick*="quitApp"] .nav-icon::before { content: "logout"; }
+
+        .nav-item:hover .nav-icon,
+        .nav-item.active .nav-icon {
+            background: rgba(178, 35, 227, 0.18);
+            color: #ffffff;
         }
 
         .main-content {
@@ -391,6 +428,11 @@
             background: rgba(139, 0, 0, 0.5);
         }
 
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
         .spinner {
             display: inline-block;
             width: 12px;
@@ -413,6 +455,94 @@
             margin-bottom: 20px;
             font-size: 13px;
             color: #ff9999;
+        }
+
+        .xp-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+            gap: 16px;
+        }
+
+        .xp-level {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .xp-meta {
+            margin-top: 10px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .xp-progress {
+            margin-top: 18px;
+            height: 12px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(178, 35, 227, 0.18);
+        }
+
+        .xp-progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #b223e3, #22c55e);
+            transition: width 0.25s ease;
+        }
+
+        .streak-number {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .streak-label {
+            margin-top: 8px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .quest-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .quest-card {
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(68, 0, 70, 0.18);
+            border: 1px solid rgba(178, 35, 227, 0.16);
+        }
+
+        .quest-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .quest-reward {
+            margin-top: 8px;
+            color: #22c55e;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .quest-description {
+            margin-top: 8px;
+            color: #9a9a9a;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 880px) {
+            .xp-hero {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -439,6 +569,10 @@
             <div class="nav-item" onclick="switchPage('chat')">
                 <span class="nav-icon">💬</span>
                 Chat
+            </div>
+            <div class="nav-item" onclick="switchPage('streaks')">
+                <span class="nav-icon"></span>
+                Streaks & XP
             </div>
             <div class="nav-item" onclick="switchPage('accessibility')">
                 <span class="nav-icon">♿</span>
@@ -576,6 +710,60 @@
                 </div>
             </div>
 
+            <!-- Streaks Page -->
+            <div id="page-streaks" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Streaks & XP</div>
+                    <div class="xp-hero">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Progress</div>
+                                    <div class="card-description" style="margin-top: 8px;">Build momentum by checking in and using Clarity.</div>
+                                </div>
+                                <button id="dailyCheckInButton" class="btn btn-primary" onclick="claimDailyXp()">Check In</button>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <div class="xp-level" id="xpLevel">Level 1</div>
+                                <div class="xp-meta" id="xpMeta">0 / 100 XP</div>
+                                <div class="xp-progress">
+                                    <div id="xpProgressFill" class="xp-progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Current Streak</div>
+                            <div style="margin-top: 18px;">
+                                <div class="streak-number" id="streakCount">0</div>
+                                <div class="streak-label" id="streakLabel">days in a row</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Quests</div>
+                    <div class="quest-list">
+                        <div class="quest-card">
+                            <div class="quest-title">Open Chat</div>
+                            <div class="quest-reward">+10 XP</div>
+                            <div class="quest-description">Launch the assistant and ask for help with your current workflow.</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="quest-title">Use Overlay Guidance</div>
+                            <div class="quest-reward">+15 XP</div>
+                            <div class="quest-description">Turn on the overlay and let Clarity guide you through a screen task.</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="quest-title">Daily Check In</div>
+                            <div class="quest-reward">+25 XP</div>
+                            <div class="quest-description">Come back once a day to keep the streak alive.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Accessibility Page -->
             <div id="page-accessibility" style="display: none;">
                 <div class="section">
@@ -637,6 +825,94 @@
     <script>
         const dashboardApi = window.dashboard;
         let overlayActive = false;
+        const STREAKS_STORAGE_KEY = 'clarity:streaks';
+        const XP_PER_LEVEL = 100;
+
+        function formatDateKey(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getTodayKey() {
+            return formatDateKey(new Date());
+        }
+
+        function getYesterdayKey() {
+            const date = new Date();
+            date.setDate(date.getDate() - 1);
+            return formatDateKey(date);
+        }
+
+        function getStreakState() {
+            try {
+                return {
+                    totalXp: 0,
+                    streak: 0,
+                    lastCheckIn: null,
+                    claimedQuests: {},
+                    ...JSON.parse(localStorage.getItem(STREAKS_STORAGE_KEY) || '{}')
+                };
+            } catch {
+                localStorage.removeItem(STREAKS_STORAGE_KEY);
+                return { totalXp: 0, streak: 0, lastCheckIn: null, claimedQuests: {} };
+            }
+        }
+
+        function saveStreakState(state) {
+            localStorage.setItem(STREAKS_STORAGE_KEY, JSON.stringify(state));
+            renderStreaks();
+        }
+
+        function addXp(amount) {
+            const state = getStreakState();
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + amount);
+            saveStreakState(state);
+        }
+
+        function claimQuestXp(quest, amount) {
+            const state = getStreakState();
+            const key = `${quest}:${getTodayKey()}`;
+            state.claimedQuests ??= {};
+            if (state.claimedQuests[key]) return;
+            state.claimedQuests[key] = true;
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + amount);
+            saveStreakState(state);
+        }
+
+        function claimDailyXp() {
+            const state = getStreakState();
+            const today = getTodayKey();
+            if (state.lastCheckIn === today) return;
+
+            state.streak = state.lastCheckIn === getYesterdayKey()
+                ? Number(state.streak || 0) + 1
+                : 1;
+            state.lastCheckIn = today;
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + 25);
+            saveStreakState(state);
+        }
+
+        function renderStreaks() {
+            const state = getStreakState();
+            const totalXp = Number(state.totalXp || 0);
+            const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
+            const levelXp = totalXp % XP_PER_LEVEL;
+            const todayClaimed = state.lastCheckIn === getTodayKey();
+
+            document.getElementById('xpLevel') && (document.getElementById('xpLevel').textContent = `Level ${level}`);
+            document.getElementById('xpMeta') && (document.getElementById('xpMeta').textContent = `${levelXp} / ${XP_PER_LEVEL} XP`);
+            document.getElementById('xpProgressFill') && (document.getElementById('xpProgressFill').style.width = `${levelXp}%`);
+            document.getElementById('streakCount') && (document.getElementById('streakCount').textContent = Number(state.streak || 0));
+            document.getElementById('streakLabel') && (document.getElementById('streakLabel').textContent = Number(state.streak || 0) === 1 ? 'day in a row' : 'days in a row');
+
+            const checkInButton = document.getElementById('dailyCheckInButton');
+            if (checkInButton) {
+                checkInButton.textContent = todayClaimed ? 'Claimed' : 'Check In';
+                checkInButton.disabled = todayClaimed;
+            }
+        }
 
         function switchPage(page) {
             // Hide all pages
@@ -651,9 +927,11 @@
                 overlay: 'Overlay Controls',
                 displays: 'Displays',
                 chat: 'Chat Assistant',
+                streaks: 'Streaks & XP',
                 accessibility: 'Accessibility Settings'
             };
             document.getElementById('pageTitle').textContent = titles[page];
+            if (page === 'streaks') renderStreaks();
             
             // Update active nav
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -746,6 +1024,7 @@
                     await dashboardApi.hideOverlay();
                 } else {
                     await dashboardApi.showOverlay();
+                    claimQuestXp('overlay', 15);
                 }
                 await updateStatus();
             } catch (error) {
@@ -756,6 +1035,7 @@
 
         function showChat() {
             dashboardApi.showChat();
+            claimQuestXp('chat', 10);
         }
 
         function toggleAccessibilityFeature(feature, toggle) {
@@ -845,6 +1125,7 @@
 
         // Initial load
         loadAccessibilityPreferences();
+        renderStreaks();
         updateStatus();
         updateDisplayInfo();
         setInterval(updateDisplayInfo, 3000);
