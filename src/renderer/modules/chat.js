@@ -1,9 +1,6 @@
 import { getCaptureServices } from "./capture-service.js";
 import { getChatAccessibilityPreferences } from "./chat-accessibility.js";
-import { cropBase64Image } from "./context-crop.js";
-import { applyMicroGridToCrop } from "./micro-grid-annotate.js";
 import { renderMarkdown } from "./markdown.js";
-import { annotateScreenshot } from "./som-annotate.js";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
@@ -41,7 +38,6 @@ let promptLoopCancelled = false;
 let resolvePromptWait = null;
 let newChatButton = null;
 let isAiBusy = false;
-let latestLocalizationContext = null;
 
 class PromptCancelledError extends Error {
   constructor() {
@@ -454,17 +450,18 @@ function screenFrameToAttachment(frame) {
 
 async function captureScreenAttachment() {
   try {
-    const context = await captureScreenContext({ annotate: true });
-    if (!context?.screenshotBase64) return null;
+    const { screenCapture } = getCaptureServices();
 
-    return {
-      id: crypto.randomUUID(),
-      name: "Screen with marks",
-      mimeType: "image/jpeg",
-      size: Math.ceil(context.screenshotBase64.length * 0.75),
-      base64: context.screenshotBase64,
-      contextOnly: true,
-    };
+    if (!screenCapture.running) {
+      const sources = await screenCapture.listSources({ types: ["screen"] });
+      if (!sources.length) return null;
+      await screenCapture.start({ sourceId: sources[0].id });
+    }
+
+    const frame = await screenCapture.captureFrameAsync({ quality: 0.65 });
+    if (!frame) return null;
+
+    return screenFrameToAttachment(frame);
   } catch {
     return null;
   }
@@ -487,147 +484,6 @@ async function captureScreenBase64() {
   } catch {
     return null;
   }
-}
-
-async function captureScreenContext({ annotate = false } = {}) {
-  const rawBase64 = await captureScreenBase64();
-  if (!rawBase64) return null;
-
-  if (!annotate || !window.localization?.discoverMarks) {
-    latestLocalizationContext = null;
-    return {
-      rawBase64,
-      screenshotBase64: rawBase64,
-      marks: [],
-      displayBounds: null,
-      imageMeta: null,
-    };
-  }
-
-  try {
-    const discovered = await window.localization.discoverMarks();
-    const marks = Array.isArray(discovered?.marks) ? discovered.marks : [];
-    if (!discovered?.enabled || !marks.length) {
-      latestLocalizationContext = null;
-      return {
-        rawBase64,
-        screenshotBase64: rawBase64,
-        marks: [],
-        displayBounds: discovered?.displayBounds ?? null,
-        imageMeta: null,
-      };
-    }
-
-    const annotated = await annotateScreenshot(rawBase64, marks);
-    latestLocalizationContext = {
-      rawBase64,
-      screenshotBase64: annotated.annotatedBase64,
-      marks: annotated.marks,
-      displayBounds: discovered.displayBounds ?? null,
-      imageMeta: annotated.imageMeta,
-    };
-
-    return latestLocalizationContext;
-  } catch (error) {
-    console.warn("[localization] SoM annotation failed:", error);
-    latestLocalizationContext = null;
-    return {
-      rawBase64,
-      screenshotBase64: rawBase64,
-      marks: [],
-      displayBounds: null,
-      imageMeta: null,
-    };
-  }
-}
-
-function imageMarkToCssBox(mark, imageMeta) {
-  const dpr = imageMeta?.dpr || window.devicePixelRatio || 1;
-  const imageWidth = imageMeta?.width || window.screen.width * dpr;
-  const imageHeight = imageMeta?.height || window.screen.height * dpr;
-  const scaleX = imageWidth / (window.screen.width * dpr);
-  const scaleY = imageHeight / (window.screen.height * dpr);
-  const divisorX = dpr * (Number.isFinite(scaleX) && scaleX > 0 ? scaleX : 1);
-  const divisorY = dpr * (Number.isFinite(scaleY) && scaleY > 0 ? scaleY : 1);
-
-  return {
-    x: Number(mark.x) / divisorX,
-    y: Number(mark.y) / divisorY,
-    w: Number(mark.w) / divisorX,
-    h: Number(mark.h) / divisorY,
-  };
-}
-
-function resolveStepMark(step, context = latestLocalizationContext) {
-  const markId = Number(step?.markId);
-  if (!Number.isFinite(markId)) {
-    if (![Number(step?.x), Number(step?.y)].every(Number.isFinite)) return null;
-
-    return {
-      ...step,
-      coarseMethod: "legacy",
-      markBBox: step?.w && step?.h
-        ? { x: step.x, y: step.y, w: step.w, h: step.h }
-        : null,
-    };
-  }
-
-  const mark = context?.marks?.find((candidate) => Number(candidate.id) === markId);
-  if (!mark) {
-    if (![Number(step?.x), Number(step?.y)].every(Number.isFinite)) return null;
-    return { ...step, coarseMethod: "legacy" };
-  }
-
-  const markBBox = imageMarkToCssBox(mark, context?.imageMeta);
-  const centerX = Math.round(markBBox.x + markBBox.w / 2);
-  const centerY = Math.round(markBBox.y + markBBox.h / 2);
-  const description = step.description || step.label || mark.label || `Mark ${mark.id}`;
-
-  if (step.action === "highlight") {
-    return {
-      ...step,
-      x: Math.round(markBBox.x),
-      y: Math.round(markBBox.y),
-      w: Math.round(markBBox.w),
-      h: Math.round(markBBox.h),
-      markBBox,
-      description,
-      label: description,
-      coarseMethod: "markId",
-    };
-  }
-
-  return {
-    ...step,
-    x: centerX,
-    y: centerY,
-    w: Math.round(markBBox.w),
-    h: Math.round(markBBox.h),
-    markBBox,
-    description,
-    label: description,
-    coarseMethod: "markId",
-  };
-}
-
-function extractTargetText(description = "") {
-  const text = String(description ?? "").trim();
-  const quoted = text.match(/["'`](.+?)["'`]/);
-  if (quoted?.[1]) return quoted[1].trim();
-
-  const withoutMarkdown = text
-    .replace(/[*_`#>\[\]()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const nounish = withoutMarkdown.match(/\b(?:button|link|menu|tab|field|input|option|item)\s+(.+)$/i);
-  return (nounish?.[1] || withoutMarkdown).slice(0, 80);
-}
-
-function logLocalization(methods = {}) {
-  console.info("[localization]", {
-    coarseMethod: methods.coarseMethod || "legacy",
-    refineMethod: methods.refineMethod || "skipped",
-  });
 }
 
 function formatMessageTime(date = new Date()) {
@@ -917,11 +773,7 @@ async function askGemini() {
       })),
     }));
 
-  return window.geminiChat.send({
-    history,
-    marks: latestLocalizationContext?.marks ?? [],
-    displayBounds: latestLocalizationContext?.displayBounds ?? null,
-  });
+  return window.geminiChat.send({ history });
 }
 
 function stopVoiceReaderAudio() {
@@ -1090,66 +942,23 @@ async function refineStepCoordinates(step) {
 
   try {
     const isHighlight = step.action === "highlight";
-    const anchor = step.markBBox || (isHighlight
-      ? { x: step.x, y: step.y, w: step.w || 1, h: step.h || 1 }
-      : { x: step.x, y: step.y, w: step.w || 1, h: step.h || 1 });
-    const targetText = extractTargetText(step.description || step.label || "");
-    const crop = await cropBase64Image(base64, anchor);
-    let refined = null;
-    let refineMethod = "gemini";
+    const centerX = isHighlight ? step.x + Math.round((step.w || 0) / 2) : step.x;
+    const centerY = isHighlight ? step.y + Math.round((step.h || 0) / 2) : step.y;
 
-    if (window.localization?.ocrCrop) {
-      const ocr = await window.localization.ocrCrop({
-        croppedBase64: crop.croppedBase64,
-        targetText,
-      });
+    const { croppedBase64, x1, y1, cropW, cropH, dpr, scaleX, scaleY } =
+      await cropBase64Image(base64, centerX, centerY);
 
-      if (ocr?.fastPath && Number.isFinite(ocr.fastPath.x) && Number.isFinite(ocr.fastPath.y)) {
-        refined = ocr.fastPath;
-        refineMethod = "ocr";
-      } else {
-        step.ocrCandidates = Array.isArray(ocr?.candidates) ? ocr.candidates : [];
-      }
-    }
-
-    if (!refined && window.localization?.microGridRefine) {
-      const gridded = await applyMicroGridToCrop(
-        crop.croppedBase64,
-        crop.cropW,
-        crop.cropH
-      );
-      const micro = await window.localization.microGridRefine({
-        griddedBase64: gridded.base64,
-        cropW: gridded.cropW,
-        cropH: gridded.cropH,
-        targetElement: targetText || step.description || step.label || "target element",
-        columns: gridded.columns,
-        rows: gridded.rows,
-      });
-
-      if (micro && Number.isFinite(micro.x) && Number.isFinite(micro.y)) {
-        refined = micro;
-        refineMethod = micro.method || "ollama-micro-grid";
-      }
-    }
-
-    if (!refined) {
-      refined = await window.geminiChat.refine({
-        description: step.description || step.label || "",
-        targetText,
-        croppedBase64: crop.croppedBase64,
-        cropW: crop.cropW,
-        cropH: crop.cropH,
-        markBBox: crop.markBBox,
-        ocrCandidates: step.ocrCandidates ?? [],
-      });
-    }
+    const refined = await window.geminiChat.refine({
+      description: step.description || step.label || "",
+      croppedBase64,
+      cropW,
+      cropH,
+    });
 
     if (!refined || !Number.isFinite(refined.x) || !Number.isFinite(refined.y)) return step;
 
-    const refinedX = Math.round((crop.x1 + refined.x) / (crop.dpr * crop.scaleX));
-    const refinedY = Math.round((crop.y1 + refined.y) / (crop.dpr * crop.scaleY));
-    logLocalization({ coarseMethod: step.coarseMethod, refineMethod });
+    const refinedX = Math.round((x1 + refined.x) / (dpr * scaleX));
+    const refinedY = Math.round((y1 + refined.y) / (dpr * scaleY));
 
     if (isHighlight) {
       return {
@@ -1161,7 +970,6 @@ async function refineStepCoordinates(step) {
 
     return { ...step, x: refinedX, y: refinedY };
   } catch {
-    logLocalization({ coarseMethod: step.coarseMethod, refineMethod: "skipped" });
     return step;
   }
 }
@@ -1229,17 +1037,11 @@ async function executeHybridLoop(goal, firstStep) {
   await window.aiTools.clearHighlights();
 
   let currentStep = firstStep;
-  let currentLocalizationContext = initialLocalizationContext;
   let stepNumber = 1;
 
   try {
     while (currentStep && stepNumber <= MAX_HYBRID_STEPS && !promptLoopCancelled) {
-      const resolvedStep = resolveStepMark(currentStep, currentLocalizationContext);
-      if (!resolvedStep) {
-        logLocalization({ coarseMethod: "unresolved", refineMethod: "skipped" });
-        break;
-      }
-      const refinedStep = await refineStepCoordinates(resolvedStep);
+      const refinedStep = await refineStepCoordinates(currentStep);
       await executeSingleStep(refinedStep, { stepIndex: stepNumber });
       if (promptLoopCancelled) break;
 
@@ -1273,14 +1075,11 @@ async function executeHybridLoop(goal, firstStep) {
       if (promptLoopCancelled) break;
       await delay(600);
 
-      const screenContext = await captureScreenContext({ annotate: true });
-      currentLocalizationContext = screenContext;
+      const screenshotBase64 = await captureScreenBase64();
       const response = await window.geminiChat.step({
         goal,
         lastAction: currentStep.description || currentStep.label || "",
-        screenshotBase64: screenContext?.screenshotBase64 ?? null,
-        marks: screenContext?.marks ?? [],
-        displayBounds: screenContext?.displayBounds ?? null,
+        screenshotBase64,
       });
 
       const nextPlan = Array.isArray(response?.plan) ? response.plan : [];
@@ -1325,7 +1124,7 @@ async function handleAiCommand(text) {
     speakExplanation(explanation);
 
     const firstStep = plan[0] ?? null;
-    await executeHybridLoop(text, firstStep, latestLocalizationContext);
+    await executeHybridLoop(text, firstStep);
 
     const retrieval = response?.retrieval;
     const sourceNote =

@@ -13,9 +13,7 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "build:dir": "electron-builder --dir",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build:dir": "electron-builder --dir"
   },
   "build": {
     "appId": "com.clarity.app",
@@ -42,9 +40,7 @@
     "@cloudflare/workers-types": "^4.20250613.0",
     "electron": "^35.0.0",
     "electron-builder": "^25.1.8",
-    "happy-dom": "^20.10.3",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.8",
     "wrangler": "^4.100.0"
   },
   "dependencies": {

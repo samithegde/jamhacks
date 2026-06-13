@@ -49,44 +49,27 @@ function registerChatIpc(ipcMain) {
     const recipe = await buildRecipe(userText, history);
     sessionRecipe = recipe;
 
-    return chat(history, { recipe, marks: payload?.marks ?? [] });
+    return chat(history, { recipe });
   });
 
   ipcMain.handle("chat:step", async (_event, payload) => {
-    const { goal, lastAction, screenshotBase64, marks } = payload ?? {};
+    const { goal, lastAction, screenshotBase64 } = payload ?? {};
     if (!goal) {
       throw new Error("goal is required.");
     }
 
     return chatStep(goal, lastAction ?? "", screenshotBase64 ?? null, {
       recipe: sessionRecipe,
-      marks: marks ?? [],
     });
   });
 
   ipcMain.handle("chat:refine", async (_event, payload) => {
-    const {
-      description,
-      targetText,
-      croppedBase64,
-      cropW,
-      cropH,
-      markBBox,
-      ocrCandidates,
-    } = payload ?? {};
+    const { description, croppedBase64, cropW, cropH } = payload ?? {};
     if (!description || !croppedBase64) {
       throw new Error("description and croppedBase64 are required.");
     }
 
-    return refineCoordinate({
-      description,
-      targetText,
-      croppedBase64,
-      cropW,
-      cropH,
-      markBBox,
-      ocrCandidates,
-    });
+    return refineCoordinate({ description, croppedBase64, cropW, cropH });
   });
 }
 
