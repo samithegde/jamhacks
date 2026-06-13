@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarity Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            flex: 0 0 250px;
+            background: rgba(38, 33, 38, 0.8);
+            border-right: 1px solid rgba(178, 35, 227, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(178, 35, 227, 0.2);
+            margin-bottom: 16px;
+        }
+
+        .sidebar-logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: #b223e3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-logo img {
+            height: 32px;
+            width: auto;
+            filter: drop-shadow(0 2px 8px rgba(178, 35, 227, 0.3));
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 0 8px;
+            flex: 1;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #b0b0b0;
+            font-size: 14px;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover {
+            background: rgba(178, 35, 227, 0.15);
+            color: #ffffff;
+        }
+
+        .nav-item.active {
+            background: rgba(178, 35, 227, 0.25);
+            color: #b223e3;
+            border-left: 3px solid #b223e3;
+            padding-left: 13px;
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: 60px;
+            border-bottom: 1px solid rgba(178, 35, 227, 0.2);
+            background: rgba(26, 26, 26, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+
+        .top-bar-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(178, 35, 227, 0.2);
+            color: #b223e3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .window-button:hover {
+            background: rgba(178, 35, 227, 0.4);
+        }
+
+        .window-button:active {
+            background: rgba(178, 35, 227, 0.6);
+        }
+
+        .window-button.close:hover {
+            background: rgba(255, 100, 100, 0.3);
+            color: #ff6b6b;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .content-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: rgba(178, 35, 227, 0.3);
+            border-radius: 4px;
+        }
+
+        .content-area::-webkit-scrollbar-thumb:hover {
+            background: rgba(178, 35, 227, 0.5);
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #b223e3;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            min-width: 0;
+            background: rgba(68, 0, 70, 0.3);
+            border: 1px solid rgba(178, 35, 227, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(178, 35, 227, 0.4);
+            background: rgba(68, 0, 70, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: rgba(178, 35, 227, 0.2);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(178, 35, 227, 0.3);
+        }
+
+        .toggle-switch.active {
+            background: rgba(178, 35, 227, 0.5);
+            border-color: #b223e3;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #ffffff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 24px;
+        }
+
+        .card-description {
+            font-size: 13px;
+            color: #b0b0b0;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            overflow-wrap: anywhere;
+        }
+
+        .card-stats {
+            display: flex;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(178, 35, 227, 0.1);
+        }
+
+        .stat {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #b223e3;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(178, 35, 227, 0.15);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #b223e3;
+        }
+
+        .status-indicator.active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #b223e3;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active .status-dot {
+            background: #22c55e;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .display-list {
+            margin-top: 12px;
+            min-height: 0;
+        }
+
+        .display-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            font-size: 13px;
+            color: #b0b0b0;
+            border-bottom: 1px solid rgba(178, 35, 227, 0.1);
+        }
+
+        .display-item:last-child {
+            border-bottom: none;
+        }
+
+        .display-name {
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .display-res {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: rgba(178, 35, 227, 0.4);
+            color: #ffffff;
+            border: 1px solid rgba(178, 35, 227, 0.6);
+        }
+
+        .btn-primary:hover {
+            background: rgba(178, 35, 227, 0.6);
+            border-color: #b223e3;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: rgba(68, 0, 70, 0.3);
+            color: #ffffff;
+            border: 1px solid rgba(178, 35, 227, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(68, 0, 70, 0.5);
+            border-color: rgba(178, 35, 227, 0.6);
+        }
+
+        .btn-danger {
+            background: rgba(139, 0, 0, 0.3);
+            color: #ff6b6b;
+            border: 1px solid rgba(139, 0, 0, 0.5);
+        }
+
+        .btn-danger:hover {
+            background: rgba(139, 0, 0, 0.5);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(178, 35, 227, 0.3);
+            border-top-color: #b223e3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-box {
+            background: rgba(139, 0, 0, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #ff9999;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo-container img {
+            max-width: 280px;
+            height: auto;
+            width: 100%;
+            filter: drop-shadow(0 4px 15px rgba(178, 35, 227, 0.4));
+        }
+
+        .header p {
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .status-badge.active {
+            background: rgba(178, 35, 227, 0.3);
+            color: #ffffff;
+            border: 1px solid rgba(178, 35, 227, 0.6);
+        }
+
+        .status-badge.inactive {
+            background: rgba(68, 0, 70, 0.3);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(10px);
+            color: #ffffff;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: rgba(178, 35, 227, 0.4);
+            border: 1px solid rgba(178, 35, 227, 0.6);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: rgba(178, 35, 227, 0.6);
+            box-shadow: 0 12px 24px rgba(178, 35, 227, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(68, 0, 70, 0.4);
+            color: #ffffff;
+            border: 1px solid rgba(178, 35, 227, 0.4);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(178, 35, 227, 0.3);
+            border: 1px solid rgba(178, 35, 227, 0.6);
+        }
+
+        .btn-danger {
+            background: rgba(139, 0, 0, 0.4);
+            color: #ffffff;
+            border: 1px solid rgba(255, 100, 100, 0.4);
+        }
+
+        .btn-danger:hover {
+            background: rgba(139, 0, 0, 0.6);
+            box-shadow: 0 12px 24px rgba(139, 0, 0, 0.3);
+        }
+
+        .info-box {
+            background: rgba(178, 35, 227, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(178, 35, 227, 0.3);
+            border-left: 4px solid rgba(178, 35, 227, 0.6);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #ffffff;
+        }
+
+        .info-box strong {
+            display: block;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .display-list {
+            background: rgba(68, 0, 70, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(178, 35, 227, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .display-item {
+            padding: 8px;
+            background: rgba(178, 35, 227, 0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(178, 35, 227, 0.2);
+        }
+
+        .display-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .display-name {
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .display-res {
+            color: #b0b0b0;
+            font-size: 12px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(178, 35, 227, 0.3);
+            border-top: 2px solid #b223e3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #ffffff;
+        }
+
+        .error {
+            background: rgba(139, 0, 0, 0.25);
+            color: #ff9999;
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 760px) {
+            .sidebar {
+                width: 100px;
+                flex-basis: 100px;
+            }
+
+            .sidebar-header {
+                padding: 20px 12px;
+            }
+
+            .sidebar-logo img {
+                max-width: 76px;
+            }
+
+            .sidebar-nav {
+                padding: 0 8px;
+            }
+
+            .nav-item {
+                justify-content: center;
+                padding: 12px 10px;
+                font-size: 0;
+            }
+
+            .nav-item.active {
+                padding-left: 10px;
+            }
+
+            .nav-icon {
+                font-size: 16px;
+            }
+
+            .top-bar {
+                padding: 0 20px;
+            }
+
+            .content-area {
+                padding: 20px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .sidebar {
+                width: 84px;
+                flex-basis: 84px;
+            }
+
+            .content-area {
+                padding: 18px 16px;
+            }
+
+            .top-bar {
+                padding: 0 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="./clarity.png" alt="Clarity">
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-item active" onclick="switchPage('dashboard', this)">
+                <span class="nav-icon">📊</span>
+                Dashboard
+            </div>
+            <div class="nav-item" onclick="switchPage('overlay', this)">
+                <span class="nav-icon">🎬</span>
+                Overlay
+            </div>
+            <div class="nav-item" onclick="switchPage('displays', this)">
+                <span class="nav-icon">🖥️</span>
+                Displays
+            </div>
+            <div class="nav-item" onclick="switchPage('chat', this)">
+                <span class="nav-icon">💬</span>
+                Chat
+            </div>
+            <div style="flex: 1;"></div>
+            <div class="nav-item" onclick="showSettings()">
+                <span class="nav-icon">⚙️</span>
+                Settings
+            </div>
+            <div class="nav-item" onclick="quitApp()">
+                <span class="nav-icon">🚪</span>
+                Quit
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar" style="-webkit-app-region: drag;">
+            <div class="top-bar-title" id="pageTitle">Dashboard</div>
+            <div class="window-controls">
+                <button class="window-button" onclick="minimizeWindow()" title="Minimize">−</button>
+                <button class="window-button close" onclick="closeWindow()" title="Close">✕</button>
+            </div>
+            <div id="error" class="error-box" style="display: none; margin: 0; position: absolute; bottom: 10px; right: 30px; width: auto;"></div>
+        </div>
+
+        <div class="content-area" id="contentArea">
+            <!-- Dashboard Page -->
+            <div id="page-dashboard">
+                <div class="section">
+                    <div class="section-title">System Status</div>
+                    <div class="cards-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Overlay Engine</div>
+                                <div class="toggle-switch" id="overlayToggle" onclick="toggleOverlay()"></div>
+                            </div>
+                            <div class="card-description">Control the screen overlay capture system</div>
+                            <div>
+                                <div id="overlayStatus" class="status-indicator">
+                                    <span class="status-dot"></span>
+                                    Inactive
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Chat Window</div>
+                                <button class="btn btn-primary" onclick="showChat()">Open</button>
+                            </div>
+                            <div class="card-description">AI-powered chat assistant for screen analysis</div>
+                            <div class="card-stats">
+                                <div class="stat">
+                                    <div class="stat-label">Status</div>
+                                    <div class="stat-value">Ready</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Displays</div>
+                    <div class="card">
+                        <div id="displayCount" style="margin-bottom: 12px; font-weight: 600;"></div>
+                        <div id="displayList" class="display-list"></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Quick Actions</div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="toggleOverlay()">
+                            <span id="overlayButtonText">Start Overlay</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="showChat()">Open Chat</button>
+                        <button class="btn btn-danger" onclick="quitApp()">Quit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay Page -->
+            <div id="page-overlay" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Overlay Controls</div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Overlay Engine</div>
+                                <div class="card-description" style="margin-top: 8px;">Real-time screen capture and processing</div>
+                            </div>
+                            <div class="toggle-switch" id="overlayToggle2" onclick="toggleOverlay()" style="width: 60px; height: 32px;"></div>
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(178, 35, 227, 0.1);">
+                            <div id="overlayStatus2" class="status-indicator">
+                                <span class="status-dot"></span>
+                                Inactive
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Displays Page -->
+            <div id="page-displays" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Connected Displays</div>
+                    <div class="card">
+                        <div id="displayCountDetailed" style="margin-bottom: 20px; font-size: 14px; font-weight: 600;"></div>
+                        <div id="displayListDetailed" class="display-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Page -->
+            <div id="page-chat" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Chat Assistant</div>
+                    <div class="card">
+                        <div class="card-title" style="margin-bottom: 16px;">AI-Powered Analysis</div>
+                        <div class="card-description">Use the chat window to analyze and discuss what's happening on your screen.</div>
+                        <button class="btn btn-primary" onclick="showChat()" style="margin-top: 16px;">Open Chat Window</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dashboardApi = window.dashboard;
+        let overlayActive = false;
+
+        function switchPage(page, navItem) {
+            // Hide all pages
+            document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
+            
+            // Show selected page
+            document.getElementById(`page-${page}`).style.display = 'block';
+            
+            // Update title
+            const titles = {
+                dashboard: 'Dashboard',
+                overlay: 'Overlay Controls',
+                displays: 'Displays',
+                chat: 'Chat Assistant'
+            };
+            document.getElementById('pageTitle').textContent = titles[page];
+            
+            // Update active nav
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            navItem?.classList.add('active');
+        }
+
+        async function updateStatus() {
+            try {
+                const status = await dashboardApi.getOverlayStatus();
+                overlayActive = status.active;
+                updateUI();
+            } catch (error) {
+                console.error('Error getting status:', error);
+                showError('Failed to get overlay status');
+            }
+        }
+
+        function updateUI() {
+            const toggle = document.getElementById('overlayToggle');
+            const toggle2 = document.getElementById('overlayToggle2');
+            const status = document.getElementById('overlayStatus');
+            const status2 = document.getElementById('overlayStatus2');
+            const buttonText = document.getElementById('overlayButtonText');
+
+            if (overlayActive) {
+                toggle?.classList.add('active');
+                toggle2?.classList.add('active');
+                status.classList.add('active');
+                status2.classList.add('active');
+                status.innerHTML = '<span class="status-dot"></span>Active';
+                status2.innerHTML = '<span class="status-dot"></span>Active';
+                buttonText.textContent = 'Stop Overlay';
+            } else {
+                toggle?.classList.remove('active');
+                toggle2?.classList.remove('active');
+                status.classList.remove('active');
+                status2.classList.remove('active');
+                status.innerHTML = '<span class="status-dot"></span>Inactive';
+                status2.innerHTML = '<span class="status-dot"></span>Inactive';
+                buttonText.textContent = 'Start Overlay';
+            }
+        }
+
+        async function updateDisplayInfo() {
+            try {
+                const displays = await dashboardApi.getDisplays();
+                console.log('Displays fetched:', displays);
+                
+                const countText = `${displays.length} Display${displays.length !== 1 ? 's' : ''} Connected`;
+                document.getElementById('displayCount').innerHTML = `<div style="color: #b0b0b0; font-size: 13px;">${countText}</div>`;
+                document.getElementById('displayCountDetailed').textContent = countText;
+                
+                if (displays.length > 0) {
+                    const html = displays
+                        .map((d, i) => `
+                            <div class="display-item">
+                                <div>
+                                    <div class="display-name">Display ${i + 1}</div>
+                                    <div class="display-res">${d.bounds.width}×${d.bounds.height}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="color: #b223e3; font-weight: 600;">${d.scaleFactor}x</div>
+                                </div>
+                            </div>
+                        `).join('');
+                    document.getElementById('displayList').innerHTML = html;
+                    document.getElementById('displayListDetailed').innerHTML = html;
+                } else {
+                    document.getElementById('displayList').innerHTML = '<div style="color: #888; font-size: 13px;">No displays found</div>';
+                    document.getElementById('displayListDetailed').innerHTML = '<div style="color: #888; font-size: 13px;">No displays found</div>';
+                }
+            } catch (error) {
+                console.error('Error getting displays:', error);
+                document.getElementById('displayCount').innerHTML = '<div style="color: #ff9999; font-size: 13px;">Error loading displays</div>';
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        async function toggleOverlay() {
+            try {
+                if (overlayActive) {
+                    await dashboardApi.hideOverlay();
+                } else {
+                    await dashboardApi.showOverlay();
+                }
+                await updateStatus();
+            } catch (error) {
+                console.error('Error toggling overlay:', error);
+                showError('Failed to toggle overlay: ' + error.message);
+            }
+        }
+
+        async function showChat() {
+            try {
+                await dashboardApi.showChat();
+            } catch (error) {
+                console.error('Error showing chat:', error);
+                showError('Failed to show chat: ' + error.message);
+            }
+        }
+
+        function showSettings() {
+            alert('Settings coming soon!');
+        }
+
+        async function quitApp() {
+            if (confirm('Are you sure you want to quit Clarity?')) {
+                try {
+                    await dashboardApi.quitApp();
+                } catch (error) {
+                    console.error('Error quitting app:', error);
+                }
+            }
+        }
+
+        async function minimizeWindow() {
+            try {
+                await dashboardApi.minimizeWindow();
+            } catch (error) {
+                console.error('Error minimizing window:', error);
+            }
+        }
+
+        async function closeWindow() {
+            try {
+                await dashboardApi.closeWindow();
+            } catch (error) {
+                console.error('Error closing window:', error);
+            }
+        }
+
+        // Listen for overlay state changes
+        dashboardApi?.onOverlayStateChanged?.((state) => {
+            console.log('Overlay state changed:', state);
+            overlayActive = state.active;
+            updateUI();
+        });
+
+        // Initial load
+        console.log('Dashboard loaded, initializing...');
+        updateStatus();
+        updateDisplayInfo();
+        setInterval(updateDisplayInfo, 3000);
+    </script>
+</body>
+</html>
