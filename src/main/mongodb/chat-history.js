@@ -7,6 +7,7 @@ const MAX_HISTORY_MESSAGES = 100;
 let client = null;
 let db = null;
 let indexesEnsured = false;
+let connectPromise = null;
 
 function resolveEnvRefs(value) {
   if (!value) return value;
@@ -65,27 +66,36 @@ async function ensureIndexes(database) {
 async function getDb() {
   if (db) return db;
 
-  const uri = getMongoUri();
-  if (!uri) {
-    throw new Error("MONGODB_URI is not configured. Add your MongoDB Atlas URI to .env.");
+  if (!connectPromise) {
+    connectPromise = (async () => {
+      const uri = getMongoUri();
+      if (!uri) {
+        throw new Error("MONGODB_URI is not configured. Add your MongoDB Atlas URI to .env.");
+      }
+
+      const nextClient = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 10000,
+      });
+
+      try {
+        await nextClient.connect();
+        client = nextClient;
+        db = client.db(getDbName());
+        await ensureIndexes(db);
+        return db;
+      } catch (error) {
+        await nextClient.close().catch(() => {});
+        client = null;
+        db = null;
+        indexesEnsured = false;
+        throw error;
+      } finally {
+        connectPromise = null;
+      }
+    })();
   }
 
-  client = new MongoClient(uri, {
-    tls: true,
-    tlsAllowInvalidCertificates: true,
-  });
-  try {
-    await client.connect();
-    db = client.db(getDbName());
-    await ensureIndexes(db);
-    return db;
-  } catch (error) {
-    await client.close().catch(() => {});
-    client = null;
-    db = null;
-    indexesEnsured = false;
-    throw error;
-  }
+  return connectPromise;
 }
 
 async function getCollection() {
@@ -163,11 +173,19 @@ async function clearChatHistory({ conversationId } = {}) {
 }
 
 async function closeMongoConnection() {
+  if (connectPromise) {
+    try {
+      await connectPromise;
+    } catch {
+      // Ignore connection errors while shutting down.
+    }
+  }
   if (!client) return;
   await client.close();
   client = null;
   db = null;
   indexesEnsured = false;
+  connectPromise = null;
 }
 
 async function getChatHistoryStatus() {
