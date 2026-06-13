@@ -828,6 +828,38 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function waitForCompleteClick() {
+  return new Promise((resolve, reject) => {
+    if (promptLoopCancelled) {
+      reject(new PromptCancelledError());
+      return;
+    }
+
+    const cleanup = () => {
+      unsubComplete?.();
+      unsubCancel?.();
+      resolvePromptWait = null;
+    };
+
+    const unsubComplete = window.aiTools?.onCompleteClicked(() => {
+      cleanup();
+      resolve();
+    });
+
+    const unsubCancel = window.aiTools?.onPromptCancelled(() => {
+      promptLoopCancelled = true;
+      window.aiTools?.hideNextButton?.();
+      cleanup();
+      reject(new PromptCancelledError());
+    });
+
+    resolvePromptWait = () => {
+      cleanup();
+      reject(new PromptCancelledError());
+    };
+  });
+}
+
 function waitForNextClick() {
   return new Promise((resolve, reject) => {
     if (promptLoopCancelled) {
@@ -918,6 +950,21 @@ async function executeHybridLoop(goal, firstStep) {
       await executeSingleStep(currentStep, { stepIndex: stepNumber });
       if (promptLoopCancelled) break;
 
+      const isLastStep = Boolean(currentStep.isFinal);
+
+      if (isLastStep) {
+        await window.aiTools.showCompleteButton();
+
+        try {
+          await waitForCompleteClick();
+        } catch (error) {
+          if (error instanceof PromptCancelledError) break;
+          throw error;
+        }
+
+        break;
+      }
+
       await window.aiTools.showNextButton();
 
       try {
@@ -940,6 +987,19 @@ async function executeHybridLoop(goal, firstStep) {
       const nextPlan = Array.isArray(response?.plan) ? response.plan : [];
       currentStep = nextPlan[0] ?? null;
       stepNumber += 1;
+
+      if (!currentStep) {
+        await window.aiTools.showCompleteButton();
+
+        try {
+          await waitForCompleteClick();
+        } catch (error) {
+          if (error instanceof PromptCancelledError) break;
+          throw error;
+        }
+
+        break;
+      }
     }
   } finally {
     resetPromptLoopState();

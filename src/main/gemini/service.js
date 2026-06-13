@@ -46,6 +46,11 @@ const RESPONSE_SCHEMA = {
             type: "STRING",
             description: "Legacy alias for description.",
           },
+          isFinal: {
+            type: "BOOLEAN",
+            description:
+              "True when this is the last on-screen action for the user's goal. The user will see a Complete button instead of Next Step.",
+          },
         },
         required: ["action", "x", "y", "description"],
       },
@@ -64,7 +69,8 @@ const SYSTEM_PROMPT =
   "For cursor guidance, use action='cursor' with x, y, description only." +
   "For highlight emphasis, use action='highlight' with x, y, w, h, description." +
   "Each description explains what the pointer is targeting and appears in the on-screen widget beside the cursor." +
-  "Descriptions may use markdown for the widget (bold, lists, inline code).";
+  "Descriptions may use markdown for the widget (bold, lists, inline code)." +
+  "Set isFinal=true on the last plan item when the user only needs one more on-screen action to finish the goal.";
 
 const PLAN_RETRIEVAL_SCHEMA = {
   type: "OBJECT",
@@ -304,6 +310,7 @@ const STEP_SYSTEM_PROMPT =
   "The user's original goal and the last action taken are provided. " +
   "Look at the new screenshot and return the SINGLE next action to take, " +
   "or an empty plan array if the task is fully complete or cannot proceed. " +
+  "Set isFinal=true on the plan item when it is the last action the user must take. " +
   "The explanation field should be a brief internal note (not spoken). " +
   "Never return more than one plan item.";
 

@@ -59,6 +59,13 @@ function registerAiToolsIpc(ipcMain) {
     return { ok: true };
   });
 
+  ipcMain.handle("ai-tools:show-complete-button", async () => {
+    await showOverlay();
+    setOverlaysInteractive(true);
+    sendToOverlays("ai:complete-button:show");
+    return { ok: true };
+  });
+
   ipcMain.on("ai-tools:next-clicked", () => {
     setOverlaysInteractive(false);
     const chatWin = getChatWindow();
@@ -73,6 +80,15 @@ function registerAiToolsIpc(ipcMain) {
     const chatWin = getChatWindow();
     if (chatWin && !chatWin.isDestroyed()) {
       chatWin.webContents.send("ai:prompt:cancelled");
+    }
+  });
+
+  ipcMain.on("ai-tools:complete-clicked", () => {
+    setOverlaysInteractive(false);
+    sendToOverlays("ai:next-button:hide");
+    const chatWin = getChatWindow();
+    if (chatWin && !chatWin.isDestroyed()) {
+      chatWin.webContents.send("ai:complete:clicked");
     }
   });
 }

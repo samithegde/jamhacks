@@ -78,6 +78,7 @@ export function initVirtualCursor() {
 
   const promptControls = document.getElementById("ai-prompt-controls");
   const nextBtn = document.getElementById("ai-next-btn");
+  const completeBtn = document.getElementById("ai-complete-btn");
   const cancelBtn = document.getElementById("ai-cancel-btn");
 
   let state = { ...DEFAULTS };
@@ -284,25 +285,53 @@ export function initVirtualCursor() {
   });
 
   if (promptControls && nextBtn) {
-    window.aiTools?.onNextButtonShow(() => {
+    function showNextMode() {
+      nextBtn.classList.remove("hidden");
+      completeBtn?.classList.add("hidden");
       promptControls.classList.remove("hidden");
       constrainLayout();
-    });
+    }
 
-    window.aiTools?.onNextButtonHide(() => {
+    function showCompleteMode() {
+      nextBtn.classList.add("hidden");
+      completeBtn?.classList.remove("hidden");
+      promptControls.classList.remove("hidden");
+      constrainLayout();
+    }
+
+    function hidePromptControls() {
       promptControls.classList.add("hidden");
+      nextBtn.classList.remove("hidden");
+      completeBtn?.classList.add("hidden");
       if (widget && !widget.classList.contains("hidden")) {
         constrainLayout();
       }
+    }
+
+    window.aiTools?.onNextButtonShow(() => {
+      showNextMode();
+    });
+
+    window.aiTools?.onCompleteButtonShow(() => {
+      showCompleteMode();
+    });
+
+    window.aiTools?.onNextButtonHide(() => {
+      hidePromptControls();
     });
 
     nextBtn.addEventListener("click", () => {
-      promptControls.classList.add("hidden");
+      hidePromptControls();
       window.aiTools?.emitNextClicked();
     });
 
+    completeBtn?.addEventListener("click", () => {
+      hidePromptControls();
+      window.aiTools?.emitCompleteClicked();
+    });
+
     cancelBtn?.addEventListener("click", () => {
-      promptControls.classList.add("hidden");
+      hidePromptControls();
       window.aiTools?.emitPromptCancelled();
     });
   }

@@ -352,6 +352,29 @@ body.accessibility-high-contrast .ai-step-widget__text .message-markdown a {
   transform: scale(1.04);
 }
 
+.ai-complete-btn {
+  padding: 8px 18px;
+  background: rgba(16, 185, 129, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.45);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: auto;
+}
+
+.ai-complete-btn:hover {
+  background: rgba(16, 185, 129, 1);
+  transform: scale(1.04);
+}
+
+.ai-complete-btn.hidden {
+  display: none;
+}
+
 .ai-prompt-controls {
   position: fixed;
   z-index: 35;
