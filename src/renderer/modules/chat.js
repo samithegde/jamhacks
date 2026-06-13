@@ -13,12 +13,12 @@ const INLINE_MIME_PREFIXES = ["image/", "audio/", "video/"];
 const INLINE_MIME_TYPES = new Set(["application/pdf"]);
 const CHAT_CONVERSATION_STORAGE_KEY = "clarity:chat-conversation-id";
 
-const messages = [
-  {
-    text: "Hey there! I'm your Clarity AI. Ready to help you understand your screen, plan next steps, and keep moving.",
-    sender: "system",
-  },
-];
+const DEFAULT_WELCOME_MESSAGE = {
+  text: "Hey there! I'm your Clarity AI. Ready to help you understand your screen, plan next steps, and keep moving.",
+  sender: "system",
+};
+
+const messages = [];
 
 let conversationId = null;
 let mediaRecorder = null;
@@ -36,6 +36,8 @@ let currentReaderAudio = null;
 let promptLoopActive = false;
 let promptLoopCancelled = false;
 let resolvePromptWait = null;
+let newChatButton = null;
+let isAiBusy = false;
 
 class PromptCancelledError extends Error {
   constructor() {
@@ -54,6 +56,61 @@ function getConversationId() {
   }
 
   return conversationId;
+}
+
+function resetConversationId() {
+  conversationId = crypto.randomUUID();
+  localStorage.setItem(CHAT_CONVERSATION_STORAGE_KEY, conversationId);
+  return conversationId;
+}
+
+function setNewChatButtonDisabled(disabled) {
+  if (!newChatButton) return;
+  newChatButton.disabled = disabled;
+}
+
+function updateNewChatButtonState() {
+  setNewChatButtonDisabled(isAiBusy || promptLoopActive);
+}
+
+function updateSyncStatus(state) {
+  const syncStatusEl = document.getElementById("chat-sync-status");
+  const syncStatusDot = document.querySelector(".chat-status-dot");
+  if (!syncStatusEl || !syncStatusDot) return;
+
+  syncStatusDot.classList.remove("chat-status-dot--synced", "chat-status-dot--local");
+
+  if (state === "checking") {
+    syncStatusEl.textContent = "Checking sync…";
+    return;
+  }
+
+  if (state === "local") {
+    syncStatusEl.textContent = "Local only";
+    syncStatusDot.classList.add("chat-status-dot--local");
+    return;
+  }
+
+  if (state === "synced") {
+    syncStatusEl.textContent = "Synced";
+    syncStatusDot.classList.add("chat-status-dot--synced");
+  }
+}
+
+async function refreshSyncStatus() {
+  if (!window.chatHistory?.status) {
+    updateSyncStatus("local");
+    return;
+  }
+
+  updateSyncStatus("checking");
+
+  try {
+    const status = await window.chatHistory.status();
+    updateSyncStatus(status?.connected ? "synced" : "local");
+  } catch {
+    updateSyncStatus("local");
+  }
 }
 
 function createMessage(message) {
@@ -88,19 +145,20 @@ function getPersistableMessage(message) {
   };
 }
 
-async function loadChatHistory(messagesEl, typingIndicator) {
-  if (!window.chatHistory?.list) return;
+async function loadChatHistory() {
+  if (!window.chatHistory?.list) return false;
 
   try {
     const storedMessages = await window.chatHistory.list({
       conversationId: getConversationId(),
     });
-    if (!Array.isArray(storedMessages) || !storedMessages.length) return;
+    if (!Array.isArray(storedMessages) || !storedMessages.length) return false;
 
     messages.splice(0, messages.length, ...storedMessages.map(hydrateStoredMessage));
-    renderMessages(messagesEl, typingIndicator);
+    return true;
   } catch (error) {
     console.warn("Failed to load MongoDB chat history:", error);
+    return false;
   }
 }
 
@@ -114,7 +172,38 @@ async function saveChatMessage(message) {
     });
   } catch (error) {
     console.warn("Failed to save MongoDB chat history:", error);
+    updateSyncStatus("local");
   }
+}
+
+async function bootstrapChat(messagesEl, typingIndicator) {
+  updateSyncStatus("checking");
+
+  const loaded = await loadChatHistory();
+  if (!loaded) {
+    messages.splice(0, messages.length, { ...DEFAULT_WELCOME_MESSAGE });
+  }
+
+  renderMessages(messagesEl, typingIndicator);
+  await refreshSyncStatus();
+}
+
+async function startNewChat(messagesEl, typingIndicator) {
+  cancelPrompt();
+
+  const previousConversationId = getConversationId();
+
+  if (window.chatHistory?.clear) {
+    try {
+      await window.chatHistory.clear({ conversationId: previousConversationId });
+    } catch (error) {
+      console.warn("Failed to clear MongoDB chat history:", error);
+    }
+  }
+
+  resetConversationId();
+  messages.splice(0, messages.length, { ...DEFAULT_WELCOME_MESSAGE });
+  renderMessages(messagesEl, typingIndicator);
 }
 
 export function cancelPrompt() {
@@ -130,12 +219,14 @@ function beginPromptLoop() {
   promptLoopActive = true;
   promptLoopCancelled = false;
   resolvePromptWait = null;
+  updateNewChatButtonState();
 }
 
 function resetPromptLoopState() {
   promptLoopActive = false;
   promptLoopCancelled = false;
   resolvePromptWait = null;
+  updateNewChatButtonState();
 }
 
 function formatFileSize(bytes) {
@@ -1056,9 +1147,10 @@ export function initChat() {
   const minimizeButton = document.getElementById("minimize-button");
   const typingIndicator = document.getElementById("typing-indicator");
 
-  renderMessages(messagesEl, typingIndicator);
+  newChatButton = document.getElementById("new-chat-button");
+
   initChatResizeGrip();
-  loadChatHistory(messagesEl, typingIndicator);
+  void bootstrapChat(messagesEl, typingIndicator);
 
   chatInput.addEventListener("mousedown", () => {
     chatInput.focus();
@@ -1066,6 +1158,11 @@ export function initChat() {
 
   closeButton?.addEventListener("click", hideChatWindow);
   minimizeButton?.addEventListener("click", minimizeChatWindow);
+
+  newChatButton?.addEventListener("click", () => {
+    if (isAiBusy || promptLoopActive) return;
+    void startNewChat(messagesEl, typingIndicator);
+  });
 
   attachButton?.addEventListener("click", () => {
     fileInput?.click();
@@ -1154,7 +1251,16 @@ export function initChat() {
     saveChatMessage(userMessage);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    const aiReply = await handleAiCommand(text);
+    isAiBusy = true;
+    updateNewChatButtonState();
+
+    let aiReply;
+    try {
+      aiReply = await handleAiCommand(text);
+    } finally {
+      isAiBusy = false;
+      updateNewChatButtonState();
+    }
 
     hideTypingIndicator(typingIndicator);
 

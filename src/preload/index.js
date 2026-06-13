@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("chatHistory", {
   list: (payload) => ipcRenderer.invoke("chat-history:list", payload),
   save: (payload) => ipcRenderer.invoke("chat-history:save", payload),
   clear: (payload) => ipcRenderer.invoke("chat-history:clear", payload),
+  status: () => ipcRenderer.invoke("chat-history:status"),
 });
 
 contextBridge.exposeInMainWorld("ragKb", {

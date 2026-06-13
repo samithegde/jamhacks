@@ -202,6 +202,14 @@
   border-radius: 9999px;
 }
 
+.chat-status-dot--synced {
+  background: #4ade80;
+}
+
+.chat-status-dot--local {
+  background: #fbbf24;
+}
+
 .chat-header-actions {
   display: flex;
   align-items: center;
@@ -242,6 +250,12 @@
 
 .icon-button:active {
   transform: scale(0.95);
+}
+
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .icon-button--danger:hover {

@@ -6,15 +6,60 @@ const MAX_HISTORY_MESSAGES = 100;
 
 let client = null;
 let db = null;
+let indexesEnsured = false;
+
+function resolveEnvRefs(value) {
+  if (!value) return value;
+  return value.replace(/\$\{([^}]+)\}/g, (_, key) => {
+    const envValue = process.env[key.trim()];
+    return envValue !== undefined ? envValue : "";
+  });
+}
+
+function buildMongoUriFromParts() {
+  const user = process.env.MONGO_DB_USER?.trim();
+  const password = process.env.MONGO_DB_PASSWORD?.trim();
+  const cluster =
+    process.env.MONGODB_CLUSTER_HOST?.trim() ||
+    process.env.MONGO_DB_CLUSTER?.trim();
+
+  if (!user || !password || !cluster) return null;
+
+  return `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${cluster}/?retryWrites=true&w=majority`;
+}
 
 function getMongoUri() {
-  const uri = process.env.MONGODB_URI?.trim();
-  if (!uri || uri.startsWith("your_")) return null;
-  return uri;
+  let uri = process.env.MONGODB_URI?.trim();
+
+  if (uri && !uri.startsWith("your_")) {
+    uri = resolveEnvRefs(uri);
+    if (uri && !uri.includes("${")) return uri;
+  }
+
+  return buildMongoUriFromParts();
+}
+
+function isMongoConfigured() {
+  return Boolean(getMongoUri());
 }
 
 function getDbName() {
   return process.env.MONGODB_DB?.trim() || DEFAULT_DB_NAME;
+}
+
+async function ensureIndexes(database) {
+  if (indexesEnsured) return;
+
+  const collection = database.collection(DEFAULT_COLLECTION_NAME);
+  await collection.createIndexes([
+    { key: { conversationId: 1, time: 1 }, name: "conversation_time" },
+    {
+      key: { conversationId: 1, id: 1 },
+      name: "conversation_message",
+      unique: true,
+    },
+  ]);
+  indexesEnsured = true;
 }
 
 async function getDb() {
@@ -26,9 +71,18 @@ async function getDb() {
   }
 
   client = new MongoClient(uri);
-  await client.connect();
-  db = client.db(getDbName());
-  return db;
+  try {
+    await client.connect();
+    db = client.db(getDbName());
+    await ensureIndexes(db);
+    return db;
+  } catch (error) {
+    await client.close().catch(() => {});
+    client = null;
+    db = null;
+    indexesEnsured = false;
+    throw error;
+  }
 }
 
 async function getCollection() {
@@ -110,6 +164,34 @@ async function closeMongoConnection() {
   await client.close();
   client = null;
   db = null;
+  indexesEnsured = false;
+}
+
+async function getChatHistoryStatus() {
+  const dbName = getDbName();
+  const configured = isMongoConfigured();
+
+  if (!configured) {
+    return {
+      configured: false,
+      connected: false,
+      dbName,
+      error: "MONGODB_URI is not configured.",
+    };
+  }
+
+  try {
+    const database = await getDb();
+    await database.admin().ping();
+    return { configured: true, connected: true, dbName };
+  } catch (error) {
+    return {
+      configured: true,
+      connected: false,
+      dbName,
+      error: error.message,
+    };
+  }
 }
 
 module.exports = {
@@ -117,4 +199,5 @@ module.exports = {
   listChatMessages,
   clearChatHistory,
   closeMongoConnection,
+  getChatHistoryStatus,
 };

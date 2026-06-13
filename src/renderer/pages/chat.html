@@ -33,11 +33,20 @@
             <h2 class="chat-title">Clarity Assistant</h2>
             <p class="chat-status">
               <span class="chat-status-dot" aria-hidden="true"></span>
-              Active
+              <span id="chat-sync-status">Active</span>
             </p>
           </div>
         </div>
         <div class="chat-header-actions">
+          <button
+            id="new-chat-button"
+            class="icon-button"
+            type="button"
+            title="New chat"
+            aria-label="New chat"
+          >
+            <span class="material-symbols-outlined">restart_alt</span>
+          </button>
           <button
             id="minimize-button"
             class="icon-button"
