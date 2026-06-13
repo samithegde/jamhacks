@@ -15,6 +15,14 @@ let overlayWindows = [];
 let chatWindow = null;
 let miniChatWindow = null;
 let dashboardWindow = null;
+let overlayAccessibilityPreferences = {
+  largeText: false,
+  audio: false,
+  magnify: false,
+  screenReader: false,
+  voiceControl: false,
+  highContrast: false,
+};
 
 function getOverlayWindows() {
   return overlayWindows.filter((win) => win && !win.isDestroyed());
@@ -151,6 +159,10 @@ function createOverlayWindowForDisplay(display) {
   overlayWin.displayId = display.id;
   overlayWin.displayBounds = { ...display.bounds };
 
+  overlayWin.webContents.once("did-finish-load", () => {
+    broadcastOverlayAccessibilityPreferences();
+  });
+
   overlayWin.webContents.on("page-title-updated", (event) => {
     event.preventDefault();
   });
@@ -215,6 +227,10 @@ function createChatWindow() {
   keepWindowOffTaskbar(chatWindow);
   chatWindow.loadFile(path.join(__dirname, "../renderer/pages/chat.html"));
 
+  chatWindow.webContents.once("did-finish-load", () => {
+    broadcastAssistantAccessibilityPreferences();
+  });
+
   chatWindow.once("ready-to-show", () => {
     chatWindow.show();
     keepWindowOffTaskbar(chatWindow);
@@ -272,6 +288,10 @@ function createMiniChatWindow() {
   miniChatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   keepWindowOffTaskbar(miniChatWindow);
   miniChatWindow.loadFile(path.join(__dirname, "../renderer/pages/minichat.html"));
+
+  miniChatWindow.webContents.once("did-finish-load", () => {
+    broadcastAssistantAccessibilityPreferences();
+  });
 
   miniChatWindow.once("ready-to-show", () => {
     keepWindowOffTaskbar(miniChatWindow);
@@ -425,6 +445,189 @@ function sendToRenderer(channel, payload) {
   }
 }
 
+function hasEnabledAccessibilityPreference(preferences = overlayAccessibilityPreferences) {
+  return Object.values(preferences).some(Boolean);
+}
+
+function broadcastOverlayAccessibilityPreferences() {
+  const payload = { ...overlayAccessibilityPreferences };
+  const script = getOverlayAccessibilityApplyScript(payload);
+
+  for (const win of getOverlayWindows()) {
+    if (win.isDestroyed()) continue;
+
+    win.webContents.send("accessibility:preferences-changed", payload);
+
+    if (!win.webContents.isLoading()) {
+      win.webContents.executeJavaScript(script, true).catch(() => {});
+    }
+  }
+}
+
+function getAssistantWindows() {
+  return [chatWindow, miniChatWindow].filter((win) => win && !win.isDestroyed());
+}
+
+function broadcastAssistantAccessibilityPreferences() {
+  const payload = { ...overlayAccessibilityPreferences };
+  const script = getAssistantAccessibilityApplyScript(payload);
+
+  for (const win of getAssistantWindows()) {
+    win.webContents.send("accessibility:preferences-changed", payload);
+
+    if (!win.webContents.isLoading()) {
+      win.webContents.executeJavaScript(script, true).catch(() => {});
+    }
+  }
+}
+
+function broadcastAccessibilityPreferences() {
+  broadcastOverlayAccessibilityPreferences();
+  broadcastAssistantAccessibilityPreferences();
+}
+
+function getAssistantAccessibilityApplyScript(payload) {
+  return `
+    (() => {
+      const preferences = ${JSON.stringify(payload)};
+      document.body.classList.toggle("chat-accessibility-large-text", Boolean(preferences.largeText));
+      document.body.classList.toggle("chat-accessibility-high-contrast", Boolean(preferences.highContrast));
+      document.body.classList.toggle("chat-accessibility-audio", Boolean(preferences.audio));
+      document.body.classList.toggle("chat-accessibility-screen-reader", Boolean(preferences.screenReader));
+      document.body.classList.toggle("chat-accessibility-voice-control", Boolean(preferences.voiceControl));
+      document.body.classList.toggle("chat-accessibility-magnify", Boolean(preferences.magnify));
+      window.dispatchEvent(new CustomEvent("assistant-accessibility-preferences", { detail: preferences }));
+    })();
+  `;
+}
+
+function getOverlayAccessibilityApplyScript(payload) {
+  const css = `
+    .overlay-accessibility-direct-status {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 2147483647;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 3px solid #facc15;
+      color: #fff;
+      font: 800 14px/1.25 system-ui, -apple-system, sans-serif;
+      pointer-events: none;
+    }
+    .overlay-accessibility-direct-status.hidden {
+      display: none;
+    }
+    .overlay-accessibility-direct-contrast {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483644;
+      opacity: 0;
+      border: 5px solid #facc15;
+      background: rgba(0, 0, 0, 0.22);
+      box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+    }
+    .overlay-accessibility-direct-contrast.is-active {
+      opacity: 1;
+    }
+    .overlay-accessibility-direct-magnifier {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 2147483646;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      display: none;
+      transform: translate(-50%, -50%);
+      border: 5px solid #facc15;
+      background: radial-gradient(circle, rgba(255,255,255,0.18), rgba(250,204,21,0.12) 60%, rgba(0,0,0,0.18));
+      box-shadow: 0 0 0 5px rgba(0,0,0,0.8), 0 14px 36px rgba(0,0,0,0.35);
+      pointer-events: none;
+    }
+    .overlay-accessibility-direct-magnifier.is-active {
+      display: block;
+    }
+  `;
+
+  return `
+    (() => {
+      const preferences = ${JSON.stringify(payload)};
+      const styleText = ${JSON.stringify(css)};
+      let style = document.getElementById("overlay-accessibility-direct-style");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "overlay-accessibility-direct-style";
+        document.head.appendChild(style);
+      }
+      style.textContent = styleText;
+
+      const ensure = (id, className) => {
+        let element = document.getElementById(id);
+        if (!element) {
+          element = document.createElement("div");
+          element.id = id;
+          element.className = className;
+          document.body.appendChild(element);
+        }
+        return element;
+      };
+
+      const contrast = ensure("overlay-accessibility-direct-contrast", "overlay-accessibility-direct-contrast");
+      const magnifier = ensure("overlay-accessibility-direct-magnifier", "overlay-accessibility-direct-magnifier");
+      const status = ensure("overlay-accessibility-direct-status", "overlay-accessibility-direct-status hidden");
+
+      document.body.classList.toggle("accessibility-large-text", Boolean(preferences.largeText));
+      document.body.classList.toggle("accessibility-audio", Boolean(preferences.audio));
+      document.body.classList.toggle("accessibility-magnify", Boolean(preferences.magnify));
+      document.body.classList.toggle("accessibility-screen-reader", Boolean(preferences.screenReader));
+      document.body.classList.toggle("accessibility-voice-control", Boolean(preferences.voiceControl));
+      document.body.classList.toggle("accessibility-high-contrast", Boolean(preferences.highContrast));
+
+      contrast.classList.toggle("is-active", Boolean(preferences.highContrast));
+      magnifier.classList.toggle("is-active", Boolean(preferences.magnify));
+
+      const labels = [
+        preferences.largeText && "Large text",
+        preferences.audio && "Audio cues",
+        preferences.magnify && "Magnify",
+        preferences.screenReader && "Screen reader",
+        preferences.voiceControl && "Voice control",
+        preferences.highContrast && "High contrast",
+      ].filter(Boolean);
+      status.textContent = labels.length ? "Overlay accessibility: " + labels.join(", ") : "";
+      status.classList.toggle("hidden", labels.length === 0);
+
+      window.dispatchEvent(new CustomEvent("overlay-accessibility-preferences", { detail: preferences }));
+    })();
+  `;
+}
+
+function setOverlayAccessibilityPreferences(preferences = {}) {
+  overlayAccessibilityPreferences = {
+    ...overlayAccessibilityPreferences,
+    largeText: Boolean(preferences.largeText),
+    audio: Boolean(preferences.audio),
+    magnify: Boolean(preferences.magnify),
+    screenReader: Boolean(preferences.screenReader),
+    voiceControl: Boolean(preferences.voiceControl),
+    highContrast: Boolean(preferences.highContrast),
+  };
+
+  if (hasEnabledAccessibilityPreference()) {
+    showOverlay();
+  }
+
+  broadcastAccessibilityPreferences();
+  return { ...overlayAccessibilityPreferences };
+}
+
+function getOverlayAccessibilityPreferences() {
+  return { ...overlayAccessibilityPreferences };
+}
+
 function findDisplayForPoint(x, y) {
   return screen.getAllDisplays().find((display) => {
     const bounds = display.bounds;
@@ -500,9 +703,15 @@ async function showOverlay() {
   if (getOverlayWindows().length === 0) {
     createOverlayWindows();
   }
-  for (const win of getOverlayWindows()) {
-    await showOverlayWindow(win);
+  const updatedWins = getOverlayWindows();
+  for (const win of updatedWins) {
+    if (!win.isDestroyed()) {
+      win.setAlwaysOnTop(true, "screen-saver", 1);
+      win.showInactive();
+      win.moveTop?.();
+    }
   }
+  broadcastOverlayAccessibilityPreferences();
 }
 
 function hideOverlay() {
@@ -572,8 +781,8 @@ module.exports = {
   toggleChatWindow,
   sendToRenderer,
   sendOverlayPointAction,
-  setOverlaysInteractive,
-  sendToOverlays,
+  setOverlayAccessibilityPreferences,
+  getOverlayAccessibilityPreferences,
   DASHBOARD_ENABLED,
   createDashboardWindow,
   getDashboardWindow,

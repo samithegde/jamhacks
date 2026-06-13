@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+:root {
+  --title-font: "Forma Bold", "Forma DJR Display", "Forma DJR Text", "Forma", system-ui, -apple-system, sans-serif;
+}
+
 html,
 body {
   margin: 0;
@@ -10,4 +14,104 @@ body {
   overflow: hidden;
   background: transparent;
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+.accessibility-contrast-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(250, 204, 21, 0.08) 0,
+      rgba(250, 204, 21, 0.08) 1px,
+      transparent 1px,
+      transparent 16px
+    );
+  border: 4px solid #facc15;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.accessibility-magnifier {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 24;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.95);
+  border: 4px solid rgba(250, 204, 21, 0.95);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.16), rgba(250, 204, 21, 0.08) 58%, rgba(0, 0, 0, 0.16)),
+    repeating-linear-gradient(90deg, transparent 0, transparent 18px, rgba(255, 255, 255, 0.18) 19px);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.72),
+    0 12px 32px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.accessibility-magnifier.is-active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.accessibility-magnifier__label {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.84);
+  border: 2px solid #facc15;
+  color: #ffffff;
+  font: 800 12px/1 var(--title-font);
+}
+
+.accessibility-status {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 31;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 2px solid #facc15;
+  color: #ffffff;
+  font: 700 12px/1.2 var(--title-font);
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+.accessibility-status.hidden {
+  display: none;
+}
+
+body.accessibility-high-contrast::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  border: 3px solid rgba(250, 204, 21, 0.95);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+body.accessibility-audio .accessibility-status {
+  border-color: #38bdf8;
+}
+
+body.accessibility-high-contrast .accessibility-contrast-layer {
+  opacity: 1;
+}
+
+body.accessibility-large-text .accessibility-status {
+  font-size: 16px;
+  padding: 10px 12px;
 }

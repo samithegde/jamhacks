@@ -129,7 +129,7 @@
 }
 
 .ai-step-widget__badge {
-  font: 600 10px/1 Inter, system-ui, -apple-system, sans-serif;
+  font: 700 10px/1 var(--title-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #c4b5fd;
@@ -229,6 +229,86 @@
 
 .ai-step-widget.is-left.is-entering {
   animation-name: step-widget-enter-left;
+}
+
+body.accessibility-magnify .ai-cursor-pointer {
+  border-top-width: 12px;
+  border-bottom-width: 12px;
+  border-left-width: 22px;
+}
+
+body.accessibility-magnify .ai-cursor-ring {
+  left: 16px;
+  top: 16px;
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  box-shadow: 0 0 0 7px rgba(178, 35, 227, 0.22);
+}
+
+body.accessibility-magnify .ai-step-widget__card {
+  min-width: 240px;
+  max-width: 360px;
+  padding: 14px 16px;
+}
+
+body.accessibility-magnify .ai-step-widget__badge {
+  font-size: 12px;
+}
+
+body.accessibility-magnify .ai-step-widget__text {
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+body.accessibility-large-text .ai-step-widget__card {
+  max-width: 380px;
+}
+
+body.accessibility-large-text .ai-step-widget__badge {
+  font-size: 12px;
+}
+
+body.accessibility-large-text .ai-step-widget__text {
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+body.accessibility-high-contrast .ai-cursor-pointer {
+  border-left-color: #ffffff;
+  filter: drop-shadow(0 0 0 #000000) drop-shadow(0 3px 6px #000000);
+}
+
+body.accessibility-high-contrast .ai-cursor-ring {
+  border-color: #facc15;
+  box-shadow:
+    0 0 0 4px #000000,
+    0 0 0 8px rgba(250, 204, 21, 0.45);
+}
+
+body.accessibility-high-contrast .ai-step-widget__card {
+  background: rgba(0, 0, 0, 0.94);
+  border: 2px solid #facc15;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.7);
+}
+
+body.accessibility-high-contrast .ai-step-widget__tail {
+  border-right-color: #facc15;
+}
+
+body.accessibility-high-contrast .ai-step-widget__tail::after {
+  border-right-color: rgba(0, 0, 0, 0.94);
+}
+
+body.accessibility-high-contrast .ai-step-widget__icon {
+  background: #facc15;
+  color: #000000;
+}
+
+body.accessibility-high-contrast .ai-step-widget__badge,
+body.accessibility-high-contrast .ai-step-widget__text,
+body.accessibility-high-contrast .ai-step-widget__text .message-markdown a {
+  color: #ffffff;
 }
 
 @keyframes step-widget-enter {

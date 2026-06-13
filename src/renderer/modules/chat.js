@@ -14,7 +14,7 @@ const TTS_ENABLED = false;
 
 const messages = [
   {
-    text: "Waymond is active and ready to assist. Click the microphone button to start recording your voice or simply type in chat to tell me what you'd like to do. I’ll guide you step-by-step.",
+    text: "Hey there! I'm your Clarity AI. Ready to help you understand your screen, plan next steps, and keep moving.",
     sender: "system",
   },
 ];

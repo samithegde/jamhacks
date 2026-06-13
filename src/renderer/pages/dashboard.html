@@ -4,11 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clarity Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet"
+    />
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        :root {
+            --title-font: "Forma Bold", "Forma DJR Display", "Forma DJR Text", "Forma", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         body {
@@ -84,11 +92,44 @@
         }
 
         .nav-icon {
-            width: 18px;
-            height: 18px;
-            display: flex;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            color: #8f8f98;
+            flex-shrink: 0;
+            font-size: 0;
+        }
+
+        .nav-icon .material-symbols-outlined {
+            font-size: 19px;
+            font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+            line-height: 1;
+        }
+
+        .nav-icon::before {
+            font-family: "Material Symbols Outlined";
+            font-size: 19px;
+            font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+            line-height: 1;
+        }
+
+        .nav-item[onclick*="dashboard"] .nav-icon::before { content: "space_dashboard"; }
+        .nav-item[onclick*="overlay"] .nav-icon::before { content: "layers"; }
+        .nav-item[onclick*="displays"] .nav-icon::before { content: "desktop_windows"; }
+        .nav-item[onclick*="chat"] .nav-icon::before { content: "chat_bubble"; }
+        .nav-item[onclick*="streaks"] .nav-icon::before { content: "local_fire_department"; }
+        .nav-item[onclick*="accessibility"] .nav-icon::before { content: "accessibility_new"; }
+        .nav-item[onclick*="showSettings"] .nav-icon::before { content: "settings"; }
+        .nav-item[onclick*="quitApp"] .nav-icon::before { content: "logout"; }
+
+        .nav-item:hover .nav-icon,
+        .nav-item.active .nav-icon {
+            background: rgba(178, 35, 227, 0.18);
+            color: #ffffff;
         }
 
         .main-content {
@@ -110,8 +151,9 @@
         }
 
         .top-bar-title {
+            font-family: var(--title-font);
             font-size: 20px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .top-bar-actions {
@@ -170,8 +212,9 @@
         }
 
         .section-title {
+            font-family: var(--title-font);
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 16px;
             color: #ffffff;
             text-transform: uppercase;
@@ -207,8 +250,9 @@
         }
 
         .card-title {
+            font-family: var(--title-font);
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             color: #ffffff;
         }
 
@@ -342,6 +386,139 @@
             font-size: 12px;
         }
 
+        .task-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .task-input {
+            min-width: 0;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid rgba(178, 35, 227, 0.28);
+            background: rgba(15, 15, 18, 0.46);
+            color: #ffffff;
+            padding: 0 12px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .task-input:focus {
+            border-color: rgba(178, 35, 227, 0.72);
+            box-shadow: 0 0 0 3px rgba(178, 35, 227, 0.16);
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .task-empty {
+            padding: 16px;
+            border: 1px dashed rgba(178, 35, 227, 0.24);
+            border-radius: 8px;
+            color: #9a9a9a;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .task-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid rgba(178, 35, 227, 0.18);
+            border-radius: 8px;
+            background: rgba(15, 15, 18, 0.28);
+        }
+
+        .task-item.is-complete {
+            opacity: 0.62;
+        }
+
+        .task-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 1px solid rgba(178, 35, 227, 0.55);
+            background: rgba(178, 35, 227, 0.12);
+            color: #ffffff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-item.is-complete .task-check {
+            background: rgba(34, 197, 94, 0.28);
+            border-color: rgba(34, 197, 94, 0.72);
+        }
+
+        .task-name {
+            min-width: 0;
+            color: #ffffff;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .task-item.is-complete .task-name {
+            color: #b0b0b0;
+            text-decoration: line-through;
+        }
+
+        .task-meta {
+            margin-top: 4px;
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .task-icon-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid rgba(178, 35, 227, 0.24);
+            background: rgba(68, 0, 70, 0.22);
+            color: #ffffff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .task-icon-btn:hover:not(:disabled) {
+            background: rgba(178, 35, 227, 0.36);
+            border-color: rgba(178, 35, 227, 0.64);
+        }
+
+        .task-icon-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.38;
+        }
+
+        .task-icon-btn .material-symbols-outlined {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .task-check .material-symbols-outlined {
+            font-size: 16px;
+            line-height: 1;
+        }
+
         .button-group {
             display: flex;
             gap: 8px;
@@ -391,6 +568,11 @@
             background: rgba(139, 0, 0, 0.5);
         }
 
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
         .spinner {
             display: inline-block;
             width: 12px;
@@ -413,6 +595,106 @@
             margin-bottom: 20px;
             font-size: 13px;
             color: #ff9999;
+        }
+
+        .xp-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+            gap: 16px;
+        }
+
+        .xp-level {
+            font-family: var(--title-font);
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .xp-meta {
+            margin-top: 10px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .xp-progress {
+            margin-top: 18px;
+            height: 12px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(178, 35, 227, 0.18);
+        }
+
+        .xp-progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #b223e3, #22c55e);
+            transition: width 0.25s ease;
+        }
+
+        .streak-number {
+            font-family: var(--title-font);
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .streak-label {
+            margin-top: 8px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .quest-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .quest-card {
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(68, 0, 70, 0.18);
+            border: 1px solid rgba(178, 35, 227, 0.16);
+        }
+
+        .quest-title {
+            font-family: var(--title-font);
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .quest-reward {
+            margin-top: 8px;
+            color: #22c55e;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .quest-description {
+            margin-top: 8px;
+            color: #9a9a9a;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 880px) {
+            .xp-hero {
+                grid-template-columns: 1fr;
+            }
+
+            .task-form,
+            .task-item {
+                grid-template-columns: 1fr;
+            }
+
+            .task-actions {
+                justify-content: flex-end;
+            }
         }
     </style>
 </head>
@@ -439,6 +721,14 @@
             <div class="nav-item" onclick="switchPage('chat')">
                 <span class="nav-icon">💬</span>
                 Chat
+            </div>
+            <div class="nav-item" onclick="switchPage('streaks')">
+                <span class="nav-icon"></span>
+                Streaks & XP
+            </div>
+            <div class="nav-item" onclick="switchPage('accessibility')">
+                <span class="nav-icon">♿</span>
+                Accessibility
             </div>
             <div style="flex: 1;"></div>
             <div class="nav-item" onclick="showSettings()">
@@ -525,6 +815,24 @@
                         <button class="btn btn-danger" onclick="quitApp()">Quit</button>
                     </div>
                 </div>
+
+                <div class="section">
+                    <div class="section-title">Task Priority</div>
+                    <div class="card">
+                        <form class="task-form" onsubmit="addTask(event)">
+                            <input
+                                id="taskInput"
+                                class="task-input"
+                                type="text"
+                                maxlength="120"
+                                placeholder="Add a task"
+                                autocomplete="off"
+                            />
+                            <button class="btn btn-primary" type="submit">Add Task</button>
+                        </form>
+                        <div id="taskList" class="task-list"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Overlay Page -->
@@ -571,12 +879,309 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Streaks Page -->
+            <div id="page-streaks" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Streaks & XP</div>
+                    <div class="xp-hero">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Progress</div>
+                                    <div class="card-description" style="margin-top: 8px;">Build momentum by checking in and using Clarity.</div>
+                                </div>
+                                <button id="dailyCheckInButton" class="btn btn-primary" onclick="claimDailyXp()">Check In</button>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <div class="xp-level" id="xpLevel">Level 1</div>
+                                <div class="xp-meta" id="xpMeta">0 / 100 XP</div>
+                                <div class="xp-progress">
+                                    <div id="xpProgressFill" class="xp-progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Current Streak</div>
+                            <div style="margin-top: 18px;">
+                                <div class="streak-number" id="streakCount">0</div>
+                                <div class="streak-label" id="streakLabel">days in a row</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Quests</div>
+                    <div class="quest-list">
+                        <div class="quest-card">
+                            <div class="quest-title">Open Chat</div>
+                            <div class="quest-reward">+10 XP</div>
+                            <div class="quest-description">Launch the assistant and ask for help with your current workflow.</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="quest-title">Use Overlay Guidance</div>
+                            <div class="quest-reward">+15 XP</div>
+                            <div class="quest-description">Turn on the overlay and let Clarity guide you through a screen task.</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="quest-title">Daily Check In</div>
+                            <div class="quest-reward">+25 XP</div>
+                            <div class="quest-description">Come back once a day to keep the streak alive.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accessibility Page -->
+            <div id="page-accessibility" style="display: none;">
+                <div class="section">
+                    <div class="section-title">Accessibility Settings</div>
+                    <div class="cards-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Large Text</div>
+                                <div class="toggle-switch" id="largeTextToggle" onclick="toggleAccessibilityFeature('largeText', this)"></div>
+                            </div>
+                            <div class="card-description">Increase overlay guidance text for better readability</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Audio</div>
+                                <div class="toggle-switch" id="audioToggle" onclick="toggleAccessibilityFeature('audio', this)"></div>
+                            </div>
+                            <div class="card-description">Enable overlay audio feedback for guidance and highlights</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Magnify/Zoom</div>
+                                <div class="toggle-switch" id="magnifyToggle" onclick="toggleAccessibilityFeature('magnify', this)"></div>
+                            </div>
+                            <div class="card-description">Show an overlay magnifier lens and larger guidance markers</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Screen Reader</div>
+                                <div class="toggle-switch" id="screenReaderToggle" onclick="toggleAccessibilityFeature('screenReader', this)"></div>
+                            </div>
+                            <div class="card-description">Speak overlay guidance with text-to-speech</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Voice Control</div>
+                                <div class="toggle-switch" id="voiceControlToggle" onclick="toggleAccessibilityFeature('voiceControl', this)"></div>
+                            </div>
+                            <div class="card-description">Enable voice commands for overlay cursor and highlights</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">High Contrast Mode</div>
+                                <div class="toggle-switch" id="highContrastToggle" onclick="toggleAccessibilityFeature('highContrast', this)"></div>
+                            </div>
+                            <div class="card-description">Add a high contrast overlay layer for better visibility</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const dashboardApi = window.dashboard;
         let overlayActive = false;
+        const STREAKS_STORAGE_KEY = 'clarity:streaks';
+        const TASKS_STORAGE_KEY = 'clarity:tasks';
+        const XP_PER_LEVEL = 100;
+
+        function formatDateKey(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getTodayKey() {
+            return formatDateKey(new Date());
+        }
+
+        function getYesterdayKey() {
+            const date = new Date();
+            date.setDate(date.getDate() - 1);
+            return formatDateKey(date);
+        }
+
+        function getStreakState() {
+            try {
+                return {
+                    totalXp: 0,
+                    streak: 0,
+                    lastCheckIn: null,
+                    claimedQuests: {},
+                    ...JSON.parse(localStorage.getItem(STREAKS_STORAGE_KEY) || '{}')
+                };
+            } catch {
+                localStorage.removeItem(STREAKS_STORAGE_KEY);
+                return { totalXp: 0, streak: 0, lastCheckIn: null, claimedQuests: {} };
+            }
+        }
+
+        function saveStreakState(state) {
+            localStorage.setItem(STREAKS_STORAGE_KEY, JSON.stringify(state));
+            renderStreaks();
+        }
+
+        function addXp(amount) {
+            const state = getStreakState();
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + amount);
+            saveStreakState(state);
+        }
+
+        function claimQuestXp(quest, amount) {
+            const state = getStreakState();
+            const key = `${quest}:${getTodayKey()}`;
+            state.claimedQuests ??= {};
+            if (state.claimedQuests[key]) return;
+            state.claimedQuests[key] = true;
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + amount);
+            saveStreakState(state);
+        }
+
+        function claimDailyXp() {
+            const state = getStreakState();
+            const today = getTodayKey();
+            if (state.lastCheckIn === today) return;
+
+            state.streak = state.lastCheckIn === getYesterdayKey()
+                ? Number(state.streak || 0) + 1
+                : 1;
+            state.lastCheckIn = today;
+            state.totalXp = Math.max(0, Number(state.totalXp || 0) + 25);
+            saveStreakState(state);
+        }
+
+        function renderStreaks() {
+            const state = getStreakState();
+            const totalXp = Number(state.totalXp || 0);
+            const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
+            const levelXp = totalXp % XP_PER_LEVEL;
+            const todayClaimed = state.lastCheckIn === getTodayKey();
+
+            document.getElementById('xpLevel') && (document.getElementById('xpLevel').textContent = `Level ${level}`);
+            document.getElementById('xpMeta') && (document.getElementById('xpMeta').textContent = `${levelXp} / ${XP_PER_LEVEL} XP`);
+            document.getElementById('xpProgressFill') && (document.getElementById('xpProgressFill').style.width = `${levelXp}%`);
+            document.getElementById('streakCount') && (document.getElementById('streakCount').textContent = Number(state.streak || 0));
+            document.getElementById('streakLabel') && (document.getElementById('streakLabel').textContent = Number(state.streak || 0) === 1 ? 'day in a row' : 'days in a row');
+
+            const checkInButton = document.getElementById('dailyCheckInButton');
+            if (checkInButton) {
+                checkInButton.textContent = todayClaimed ? 'Claimed' : 'Check In';
+                checkInButton.disabled = todayClaimed;
+            }
+        }
+
+        function getTasks() {
+            try {
+                const tasks = JSON.parse(localStorage.getItem(TASKS_STORAGE_KEY) || '[]');
+                return Array.isArray(tasks) ? tasks : [];
+            } catch {
+                localStorage.removeItem(TASKS_STORAGE_KEY);
+                return [];
+            }
+        }
+
+        function saveTasks(tasks) {
+            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        function addTask(event) {
+            event.preventDefault();
+            const input = document.getElementById('taskInput');
+            const title = input.value.trim();
+            if (!title) return;
+
+            const tasks = getTasks();
+            tasks.push({
+                id: `${Date.now()}:${Math.random().toString(16).slice(2)}`,
+                title,
+                complete: false,
+                createdAt: new Date().toISOString()
+            });
+            input.value = '';
+            saveTasks(tasks);
+        }
+
+        function moveTask(id, direction) {
+            const tasks = getTasks();
+            const index = tasks.findIndex(task => task.id === id);
+            const nextIndex = index + direction;
+            if (index < 0 || nextIndex < 0 || nextIndex >= tasks.length) return;
+
+            [tasks[index], tasks[nextIndex]] = [tasks[nextIndex], tasks[index]];
+            saveTasks(tasks);
+        }
+
+        function toggleTask(id) {
+            const tasks = getTasks();
+            const task = tasks.find(item => item.id === id);
+            if (!task) return;
+
+            task.complete = !task.complete;
+            saveTasks(tasks);
+        }
+
+        function deleteTask(id) {
+            saveTasks(getTasks().filter(task => task.id !== id));
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            if (!taskList) return;
+
+            const tasks = getTasks();
+            if (!tasks.length) {
+                taskList.innerHTML = '<div class="task-empty">No tasks yet. Add one to start prioritizing.</div>';
+                return;
+            }
+
+            taskList.innerHTML = tasks.map((task, index) => `
+                <div class="task-item ${task.complete ? 'is-complete' : ''}">
+                    <button class="task-check" onclick="toggleTask('${task.id}')" title="${task.complete ? 'Mark incomplete' : 'Mark complete'}">
+                        ${task.complete ? '<span class="material-symbols-outlined">done</span>' : ''}
+                    </button>
+                    <div>
+                        <div class="task-name">${escapeHtml(task.title)}</div>
+                        <div class="task-meta">Priority ${index + 1}</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-icon-btn" onclick="moveTask('${task.id}', -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>
+                            <span class="material-symbols-outlined">keyboard_arrow_up</span>
+                        </button>
+                        <button class="task-icon-btn" onclick="moveTask('${task.id}', 1)" title="Move down" ${index === tasks.length - 1 ? 'disabled' : ''}>
+                            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                        </button>
+                        <button class="task-icon-btn" onclick="deleteTask('${task.id}')" title="Delete task">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
 
         function switchPage(page) {
             // Hide all pages
@@ -590,9 +1195,12 @@
                 dashboard: 'Dashboard',
                 overlay: 'Overlay Controls',
                 displays: 'Displays',
-                chat: 'Chat Assistant'
+                chat: 'Chat Assistant',
+                streaks: 'Streaks & XP',
+                accessibility: 'Accessibility Settings'
             };
             document.getElementById('pageTitle').textContent = titles[page];
+            if (page === 'streaks') renderStreaks();
             
             // Update active nav
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -659,9 +1267,14 @@
                         `).join('');
                     document.getElementById('displayList').innerHTML = html;
                     document.getElementById('displayListDetailed').innerHTML = html;
+                } else {
+                    document.getElementById('displayList').innerHTML = '<div class="display-item">No displays detected</div>';
+                    document.getElementById('displayListDetailed').innerHTML = '<div class="display-item">No displays detected</div>';
                 }
             } catch (error) {
                 console.error('Error getting displays:', error);
+                document.getElementById('displayCount').textContent = 'Display details unavailable';
+                document.getElementById('displayCountDetailed').textContent = 'Display details unavailable';
             }
         }
 
@@ -680,6 +1293,7 @@
                     await dashboardApi.hideOverlay();
                 } else {
                     await dashboardApi.showOverlay();
+                    claimQuestXp('overlay', 15);
                 }
                 await updateStatus();
             } catch (error) {
@@ -690,6 +1304,63 @@
 
         function showChat() {
             dashboardApi.showChat();
+            claimQuestXp('chat', 10);
+        }
+
+        function toggleAccessibilityFeature(feature, toggle) {
+            toggle.classList.toggle('active');
+            saveAccessibilityPreferences();
+        }
+
+        function getAccessibilityPreferencesFromUI() {
+            const features = ['largeText', 'audio', 'magnify', 'screenReader', 'voiceControl', 'highContrast'];
+            return features.reduce((preferences, feature) => {
+                preferences[feature] = document
+                    .getElementById(`${feature}Toggle`)
+                    ?.classList.contains('active') ?? false;
+                return preferences;
+            }, {});
+        }
+
+        function renderAccessibilityPreferences(preferences = {}) {
+            const features = ['largeText', 'audio', 'magnify', 'screenReader', 'voiceControl', 'highContrast'];
+
+            features.forEach((feature) => {
+                const toggle = document.getElementById(`${feature}Toggle`);
+                const enabled = Boolean(preferences[feature]);
+                toggle?.classList.toggle('active', enabled);
+            });
+        }
+
+        async function saveAccessibilityPreferences() {
+            const preferences = getAccessibilityPreferencesFromUI();
+            localStorage.setItem('accessibility:preferences', JSON.stringify(preferences));
+            try {
+                await dashboardApi.setAccessibilityPreferences(preferences);
+            } catch (error) {
+                console.error('Error saving accessibility preferences:', error);
+                showError('Failed to update overlay accessibility');
+            }
+        }
+
+        async function loadAccessibilityPreferences() {
+            const saved = localStorage.getItem('accessibility:preferences');
+            let localPreferences = {};
+            try {
+                localPreferences = saved ? JSON.parse(saved) : {};
+            } catch {
+                localStorage.removeItem('accessibility:preferences');
+            }
+            renderAccessibilityPreferences(localPreferences);
+
+            try {
+                const current = await dashboardApi.getAccessibilityPreferences();
+                const preferences = { ...current, ...localPreferences };
+                renderAccessibilityPreferences(preferences);
+                await dashboardApi.setAccessibilityPreferences(preferences);
+            } catch (error) {
+                console.error('Error loading accessibility preferences:', error);
+            }
         }
 
         function showSettings() {
@@ -716,7 +1387,15 @@
             updateUI();
         });
 
+        dashboardApi.onAccessibilityPreferencesChanged?.((preferences) => {
+            renderAccessibilityPreferences(preferences);
+            localStorage.setItem('accessibility:preferences', JSON.stringify(preferences));
+        });
+
         // Initial load
+        loadAccessibilityPreferences();
+        renderStreaks();
+        renderTasks();
         updateStatus();
         updateDisplayInfo();
         setInterval(updateDisplayInfo, 3000);

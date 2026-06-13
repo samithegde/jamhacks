@@ -1,5 +1,6 @@
 :root {
   --chat-radius: 1.5rem;
+  --title-font: "Forma Bold", "Forma DJR Display", "Forma DJR Text", "Forma", Inter, system-ui, -apple-system, sans-serif;
   --color-primary: #7c3aed;
   --color-secondary: #a855f7;
   --color-background: #0f172a;
@@ -144,6 +145,7 @@
 
 .chat-title {
   margin: 0;
+  font-family: var(--title-font);
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--color-on-surface);
@@ -152,8 +154,9 @@
 
 .chat-status {
   margin: 0;
+  font-family: var(--title-font);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   color: rgba(216, 180, 254, 0.8);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -680,4 +683,90 @@
 .message-attachment .material-symbols-outlined {
   font-size: 18px;
   opacity: 0.85;
+}
+
+.chat-window-body.chat-accessibility-large-text {
+  --spacing-container-padding: 1.25rem;
+  --spacing-bubble-gap: 1.05rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-header {
+  height: 78px;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-title {
+  font-size: 1.45rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-status {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.chat-window-body.chat-accessibility-large-text .messages {
+  gap: 1.15rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-group {
+  max-width: 96%;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-bubble {
+  font-size: 1.22rem;
+  line-height: 1.65;
+  padding: 1.1rem 1.15rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-time {
+  font-size: 0.82rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-markdown h1 {
+  font-size: 1.55rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-markdown h2 {
+  font-size: 1.4rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-markdown h3 {
+  font-size: 1.25rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .message-markdown h4 {
+  font-size: 1.15rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-input-wrap {
+  min-height: 58px;
+}
+
+.chat-window-body.chat-accessibility-large-text .chat-input-wrap input {
+  font-size: 1.18rem;
+}
+
+.chat-window-body.chat-accessibility-large-text .input-icon-button .material-symbols-outlined,
+.chat-window-body.chat-accessibility-large-text .send-button .material-symbols-outlined,
+.chat-window-body.chat-accessibility-large-text .icon-button .material-symbols-outlined {
+  font-size: 26px;
+}
+
+.chat-window-body.chat-accessibility-large-text .send-button {
+  width: 58px;
+  height: 58px;
+}
+
+.chat-window-body.chat-accessibility-high-contrast .ai-widget {
+  border: 2px solid #facc15;
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.chat-window-body.chat-accessibility-high-contrast .message-bubble,
+.chat-window-body.chat-accessibility-high-contrast .chat-input-wrap {
+  border-color: #facc15;
 }
