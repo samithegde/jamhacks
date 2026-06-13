@@ -29,22 +29,26 @@
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(124, 58, 237, 0.05)),
+    rgba(6, 10, 24, 0.56);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 .ai-bubble {
-  background: rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom-left-radius: 8px !important;
 }
 
 .user-bubble {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.82) 0%, rgba(109, 40, 217, 0.74) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom-right-radius: 8px !important;
   box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
 }
@@ -82,8 +86,10 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  border-radius: var(--chat-radius);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 25px 50px -12px rgba(0, 0, 0, 0.48);
+
   overflow: hidden;
 }
 
@@ -93,10 +99,10 @@
   justify-content: space-between;
   height: 64px;
   padding: 0 var(--spacing-container-padding);
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(6, 10, 24, 0.3);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   cursor: grab;
   -webkit-app-region: drag;
   flex-shrink: 0;
@@ -110,6 +116,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .chat-avatar-wrap {
@@ -165,26 +172,39 @@
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
   -webkit-app-region: no-drag;
 }
 
 .icon-button {
-  padding: 8px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: none;
-  border-radius: 0.75rem;
-  background: transparent;
-  color: var(--color-on-surface-variant);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.62);
+  color: rgba(248, 250, 252, 0.92);
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+  -webkit-app-region: no-drag;
 }
 
 .icon-button .material-symbols-outlined {
   font-size: 20px;
+  line-height: 1;
 }
 
 .icon-button:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(30, 41, 59, 0.82);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .icon-button:active {
@@ -412,10 +432,10 @@
 
 .chat-footer {
   padding: var(--spacing-container-padding);
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(6, 10, 24, 0.34);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
@@ -430,10 +450,10 @@
   flex: 1;
   display: flex;
   align-items: center;
-  background: rgba(30, 41, 59, 0.8);
+  background: rgba(15, 23, 42, 0.48);
   border-radius: 1rem;
   padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transition: box-shadow 0.2s;
 }
 

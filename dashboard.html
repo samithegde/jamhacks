@@ -119,6 +119,29 @@
             gap: 12px;
         }
 
+        .window-btn {
+            background: transparent;
+            border: none;
+            color: #b0b0b0;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .window-btn:hover {
+            background: rgba(178, 35, 227, 0.2);
+            color: #ffffff;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff6b6b;
+        }
+
         .content-area {
             flex: 1;
             overflow-y: auto;
@@ -433,6 +456,19 @@
         <div class="top-bar">
             <div class="top-bar-title" id="pageTitle">Dashboard</div>
             <div id="error" class="error-box" style="display: none; margin: 0; position: absolute; bottom: 10px; right: 30px; width: auto;"></div>
+            <div class="top-bar-actions">
+                <button class="window-btn minimize-btn" onclick="minimizeWindow()" title="Minimize">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <button class="window-btn close-btn" onclick="closeWindow()" title="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div class="content-area" id="contentArea">
@@ -664,6 +700,14 @@
             if (confirm('Are you sure you want to quit Clarity?')) {
                 dashboardApi.quitApp();
             }
+        }
+
+        function minimizeWindow() {
+            dashboardApi.minimizeDashboard();
+        }
+
+        function closeWindow() {
+            dashboardApi.closeDashboard();
         }
 
         // Listen for overlay state changes

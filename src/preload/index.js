@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld("dashboard", {
   getDisplays: () => ipcRenderer.invoke("get-displays"),
   minimizeWindow: () => ipcRenderer.invoke("minimize-window"),
   closeWindow: () => ipcRenderer.invoke("close-window"),
+  minimizeDashboard: () => ipcRenderer.invoke("minimize-window"),
+  closeDashboard: () => ipcRenderer.invoke("close-window"),
   onOverlayStateChanged: (callback) => {
     const handler = (_event, state) => callback(state);
     ipcRenderer.on("overlay-state-changed", handler);
