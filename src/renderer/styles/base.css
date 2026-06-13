@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+:root {
+  --title-font: "Forma Bold", "Forma DJR Display", "Forma DJR Text", "Forma", system-ui, -apple-system, sans-serif;
+}
+
 html,
 body {
   margin: 0;
@@ -67,7 +71,7 @@ body {
   background: rgba(0, 0, 0, 0.84);
   border: 2px solid #facc15;
   color: #ffffff;
-  font: 800 12px/1 system-ui, -apple-system, sans-serif;
+  font: 800 12px/1 var(--title-font);
 }
 
 .accessibility-status {
@@ -80,7 +84,7 @@ body {
   background: rgba(0, 0, 0, 0.82);
   border: 2px solid #facc15;
   color: #ffffff;
-  font: 700 12px/1.2 system-ui, -apple-system, sans-serif;
+  font: 700 12px/1.2 var(--title-font);
   letter-spacing: 0;
   pointer-events: none;
 }

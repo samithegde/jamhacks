@@ -1,5 +1,6 @@
 :root {
   --chat-radius: 1.5rem;
+  --title-font: "Forma Bold", "Forma DJR Display", "Forma DJR Text", "Forma", Inter, system-ui, -apple-system, sans-serif;
   --color-primary: #7c3aed;
   --color-secondary: #a855f7;
   --color-background: #0f172a;
@@ -144,6 +145,7 @@
 
 .chat-title {
   margin: 0;
+  font-family: var(--title-font);
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--color-on-surface);
@@ -152,8 +154,9 @@
 
 .chat-status {
   margin: 0;
+  font-family: var(--title-font);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   color: rgba(216, 180, 254, 0.8);
   text-transform: uppercase;
   letter-spacing: 0.05em;

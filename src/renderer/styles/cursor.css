@@ -129,7 +129,7 @@
 }
 
 .ai-step-widget__badge {
-  font: 600 10px/1 Inter, system-ui, -apple-system, sans-serif;
+  font: 700 10px/1 var(--title-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #c4b5fd;
