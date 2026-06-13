@@ -4,6 +4,7 @@
   "description": "Jamhacks overlay desktop app",
   "main": "main.js",
   "scripts": {
+    "dev": "electron .",
     "start": "electron .",
     "worker:dev": "wrangler dev",
     "worker:deploy": "wrangler deploy",
@@ -15,14 +16,17 @@
     "build:dir": "electron-builder --dir"
   },
   "build": {
-    "appId": "com.jamhacks.app",
-    "productName": "Jamhacks",
+    "appId": "com.clarity.app",
+    "productName": "Clarity",
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
       "chat.html",
+      "dashboard.html",
+      "clarity.png",
+      "brandmark.png",
       "src/**/*"
     ],
     "win": {

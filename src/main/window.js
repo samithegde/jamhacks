@@ -8,6 +8,7 @@ const CHAT_MARGIN = 24;
 
 let overlayWindows = [];
 let chatWindow = null;
+let dashboardWindow = null;
 
 function getOverlayWindows() {
   return overlayWindows.filter((win) => win && !win.isDestroyed());
@@ -156,14 +157,96 @@ function toggleChatWindow() {
   }
 }
 
+function createDashboardWindow() {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.focus();
+    return dashboardWindow;
+  }
+
+  dashboardWindow = new BrowserWindow({
+    width: 1920,
+    height: 1080,
+    show: false,
+    frame: false,
+    resizable: true,
+    focusable: true,
+    alwaysOnTop: false,
+    fullscreen: true,
+    webPreferences: {
+      preload: path.join(__dirname, "../preload/index.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  dashboardWindow.setMenu(null);
+  dashboardWindow.loadFile(path.join(__dirname, "../../dashboard.html"));
+
+  dashboardWindow.once("ready-to-show", () => {
+    dashboardWindow.show();
+  });
+
+  dashboardWindow.on("closed", () => {
+    dashboardWindow = null;
+  });
+
+  return dashboardWindow;
+}
+
+function getDashboardWindow() {
+  return dashboardWindow && !dashboardWindow.isDestroyed() ? dashboardWindow : null;
+}
+
+function showDashboardWindow() {
+  const win = getDashboardWindow() ?? createDashboardWindow();
+  win.show();
+  win.focus();
+  return win;
+}
+
+function hideDashboardWindow() {
+  const win = getDashboardWindow();
+  if (!win) return;
+  win.hide();
+}
+
+function closeDashboardWindow() {
+  const win = getDashboardWindow();
+  if (!win) return;
+  win.close();
+}
+
 function sendToRenderer(channel, payload) {
   for (const win of getOverlayWindows()) {
     win.webContents.send(channel, payload);
   }
 }
 
+function notifyDashboard(channel, payload) {
+  const win = getDashboardWindow();
+  if (win) {
+    win.webContents.send(channel, payload);
+  }
+}
+
+function showOverlay() {
+  const wins = getOverlayWindows();
+  if (wins.length === 0) {
+    createOverlayWindows();
+  }
+  const updatedWins = getOverlayWindows();
+  for (const win of updatedWins) {
+    if (!win.isDestroyed()) {
+      win.showInactive();
+    }
+  }
+}
+
+function hideOverlay() {
+  closeOverlayWindows();
+}
+
 function createWindows() {
-  createOverlayWindows();
   createChatWindow();
 
   screen.on("display-added", rebuildOverlayWindows);
@@ -181,6 +264,21 @@ function cleanupWindows() {
   }
 }
 
+function minimizeDashboard() {
+  const win = getDashboardWindow();
+  if (win && !win.isDestroyed()) {
+    win.minimize();
+  }
+}
+
+function closeDashboard() {
+  const win = getDashboardWindow();
+  if (win && !win.isDestroyed()) {
+    win.close();
+  }
+  dashboardWindow = null;
+}
+
 module.exports = {
   createWindows,
   cleanupWindows,
@@ -190,4 +288,14 @@ module.exports = {
   hideChatWindow,
   toggleChatWindow,
   sendToRenderer,
+  createDashboardWindow,
+  getDashboardWindow,
+  showDashboardWindow,
+  hideDashboardWindow,
+  closeDashboardWindow,
+  notifyDashboard,
+  showOverlay,
+  hideOverlay,
+  minimizeDashboard,
+  closeDashboard,
 };

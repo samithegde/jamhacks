@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain } = require("electron");
-const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows } = require("./window");
+const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows, showDashboardWindow } = require("./window");
 const { registerIpcHandlers } = require("./ipc");
 const { restoreWindowsTaskbar } = require("./utils/taskbar");
 const { configureCaptureSession } = require("./capture/session");
@@ -41,9 +41,10 @@ function createTray() {
     .resize({ width: 16, height: 16 });
 
   tray = new Tray(icon);
-  tray.setToolTip("Jamhacks Overlay");
+  tray.setToolTip("Clarity");
 
   const menu = Menu.buildFromTemplate([
+    { label: "Dashboard", click: () => showDashboardWindow() },
     { label: "Toggle Chat", click: () => toggleChatWindow() },
     { label: "Show Chat", click: () => showChatWindow() },
     { type: "separator" },
@@ -63,17 +64,19 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId("com.jamhacks.overlay");
+  app.setAppUserModelId("com.clarity.overlay");
   app.dock?.hide?.();
   configureCaptureSession();
   await restoreWindowsTaskbar();
   createWindows();
   createTray();
+  showDashboardWindow();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindows();
       createTray();
+      showDashboardWindow();
     }
   });
 });
