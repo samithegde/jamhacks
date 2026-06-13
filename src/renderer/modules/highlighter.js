@@ -1,6 +1,10 @@
+import { playAudioCue } from "./accessibility.js";
+
 const DEFAULT_COLOR = "rgba(250, 204, 21, 0.35)";
 const DEFAULT_BORDER = "rgba(250, 204, 21, 0.95)";
 const DEFAULT_STROKE_WIDTH = 4;
+const HIGH_CONTRAST_COLOR = "rgba(0, 0, 0, 0.2)";
+const HIGH_CONTRAST_BORDER = "rgba(255, 255, 0, 1)";
 
 export function initHighlighter() {
   const canvas = document.getElementById("highlighter-canvas");
@@ -19,13 +23,14 @@ export function initHighlighter() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const shape of shapes) {
-      drawShape(ctx, shape);
+      drawShape(ctx, withAccessibilityStyle(shape));
     }
   }
 
   const shapes = [];
 
   function addShape(shape) {
+    playAudioCue(560);
     const id = ++shapeId;
     const entry = { id, ...shape };
     shapes.push(entry);
@@ -72,7 +77,7 @@ export function initHighlighter() {
       fill: payload.fill ?? DEFAULT_COLOR,
       stroke: payload.stroke ?? DEFAULT_BORDER,
       lineWidth: payload.lineWidth ?? 3,
-      duration: payload.duration ?? 5000,
+      duration: payload.duration ?? 0,
     });
   });
 
@@ -85,7 +90,7 @@ export function initHighlighter() {
       fill: payload.fill ?? DEFAULT_COLOR,
       stroke: payload.stroke ?? DEFAULT_BORDER,
       lineWidth: payload.lineWidth ?? 3,
-      duration: payload.duration ?? 5000,
+      duration: payload.duration ?? 0,
     });
   });
 
@@ -95,17 +100,32 @@ export function initHighlighter() {
       points: payload.points ?? [],
       stroke: payload.stroke ?? DEFAULT_BORDER,
       lineWidth: payload.lineWidth ?? DEFAULT_STROKE_WIDTH,
-      duration: payload.duration ?? 5000,
+      duration: payload.duration ?? 0,
     });
   });
 
   window.aiTools?.onHighlightClear(() => clearAll());
+  window.aiTools?.onAccessibilityPreferencesChanged?.(() => redraw(shapes));
 
   resizeCanvas();
   window.addEventListener("resize", () => {
     resizeCanvas();
     redraw(shapes);
   });
+}
+
+function withAccessibilityStyle(shape) {
+  const highContrast = document.body.classList.contains(
+    "accessibility-high-contrast"
+  );
+  const magnify = document.body.classList.contains("accessibility-magnify");
+
+  return {
+    ...shape,
+    fill: highContrast ? HIGH_CONTRAST_COLOR : shape.fill,
+    stroke: highContrast ? HIGH_CONTRAST_BORDER : shape.stroke,
+    lineWidth: magnify ? Math.max(shape.lineWidth * 1.75, 6) : shape.lineWidth,
+  };
 }
 
 function drawShape(ctx, shape) {

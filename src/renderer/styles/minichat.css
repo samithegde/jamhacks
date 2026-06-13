@@ -1,0 +1,69 @@
+:root {
+  --color-primary: #7c3aed;
+}
+
+.minichat-body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding-top: var(--win-caption-inset, 0px);
+  box-sizing: border-box;
+  background: transparent;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minichat-button {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.minichat-button:hover {
+  transform: scale(1.06);
+  border-color: rgba(168, 85, 247, 0.6);
+  box-shadow:
+    0 10px 28px rgba(124, 58, 237, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.minichat-button:active {
+  transform: scale(0.98);
+}
+
+.minichat-avatar {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.minichat-status-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+  border: 2px solid rgba(15, 23, 42, 0.95);
+}

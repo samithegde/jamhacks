@@ -10,6 +10,8 @@ const {
   getChatWindow,
   minimizeDashboard,
   closeDashboard,
+  setOverlayAccessibilityPreferences,
+  getOverlayAccessibilityPreferences,
 } = require("../window");
 const { app } = require("electron");
 
@@ -28,8 +30,8 @@ function registerDashboardIpc(ipcMain) {
     return { active: overlayVisible };
   });
 
-  ipcMain.handle("show-overlay", () => {
-    showOverlay();
+  ipcMain.handle("show-overlay", async () => {
+    await showOverlay();
     overlayVisible = true;
     notifyDashboard("overlay-state-changed", { active: true });
     return { ok: true };
@@ -59,6 +61,16 @@ function registerDashboardIpc(ipcMain) {
       workArea: display.workArea,
       scaleFactor: display.scaleFactor,
     }));
+  });
+
+  ipcMain.handle("accessibility:get-preferences", () => {
+    return getOverlayAccessibilityPreferences();
+  });
+
+  ipcMain.handle("accessibility:set-preferences", (_event, preferences) => {
+    const updated = setOverlayAccessibilityPreferences(preferences);
+    notifyDashboard("accessibility-preferences-changed", updated);
+    return updated;
   });
 
   ipcMain.handle("minimize-window", () => {

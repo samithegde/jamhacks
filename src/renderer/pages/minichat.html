@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:"
+    />
+    <title>Clarity</title>
+    <link rel="stylesheet" href="../styles/base.css" />
+    <link rel="stylesheet" href="../styles/minichat.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="minichat-body">
+    <button
+      id="minichat-button"
+      class="minichat-button"
+      type="button"
+      title="Open Clarity"
+      aria-label="Open Clarity chat"
+    >
+      <img class="minichat-avatar" src="../assets/brandmark.png" alt="" />
+      <span class="minichat-status-dot" aria-hidden="true"></span>
+    </button>
+
+    <script type="module" src="../minichat-index.js"></script>
+  </body>
+</html>

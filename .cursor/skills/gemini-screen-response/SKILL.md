@@ -17,7 +17,7 @@ Use this as `generationConfig.responseSchema` with `generationConfig.responseMim
   "properties": {
     "explanation": {
       "type": "STRING",
-      "description": "A clean, concise 1-sentence vocal instruction."
+      "description": "A clean, concise vocal instruction/description."
     },
     "plan": {
       "type": "ARRAY",
@@ -25,28 +25,36 @@ Use this as `generationConfig.responseSchema` with `generationConfig.responseMim
       "items": {
         "type": "OBJECT",
         "properties": {
+          "action": {
+            "type": "STRING",
+            "description": "Either 'cursor' (guidance pointer) or 'highlight' (rectangular emphasis)."
+          },
           "x": {
             "type": "INTEGER",
-            "description": "The exact absolute X coordinate of the top-left corner of the item."
+            "description": "The exact absolute X coordinate in display pixels."
           },
           "y": {
             "type": "INTEGER",
-            "description": "The exact absolute Y coordinate of the top-left corner of the item."
+            "description": "The exact absolute Y coordinate in display pixels."
           },
           "w": {
             "type": "INTEGER",
-            "description": "The width of the item in pixels."
+            "description": "The width in pixels (required when action='highlight')."
           },
           "h": {
             "type": "INTEGER",
-            "description": "The height of the item in pixels."
+            "description": "The height in pixels (required when action='highlight')."
+          },
+          "description": {
+            "type": "STRING",
+            "description": "What the cursor is pointing at — shown in the widget beside the pointer."
           },
           "label": {
             "type": "STRING",
-            "description": "The short description or name of the button."
+            "description": "Legacy alias for description."
           }
         },
-        "required": ["x", "y", "w", "h", "label"]
+        "required": ["action", "x", "y", "description"]
       }
     }
   },
@@ -65,7 +73,7 @@ generationConfig: {
 }
 ```
 
-Parse the model text as JSON. Validate `explanation` (string) and `plan` (array). Each plan item must have integer `x`, `y`, `w`, `h` and string `label`.
+Parse the model text as JSON. Validate `explanation` (string) and `plan` (array). Each plan item must include `action`, integer `x` and `y`, and string `description` (or legacy `label`). For `highlight`, also require integer `w` and `h`.
 
 ## Field usage in this app
 
@@ -78,8 +86,10 @@ Parse the model text as JSON. Validate `explanation` (string) and `plan` (array)
 
 For each item in `plan`, in order:
 
-1. `window.aiTools.moveCursor({ x, y, animate: true, duration: 350 })`
-2. `window.aiTools.highlightRect({ x, y, width: w, height: h, duration: 5000 })`
+For each item in `plan`, execute by `action`:
+
+- `cursor`: `window.aiTools.moveCursor({ x, y, description, stepIndex, stepTotal, animate: true, duration: 350 })` — shows a widget beside the cursor with the target description.
+- `highlight`: move cursor to the target center with `description`, then `window.aiTools.highlightRect({ x, y, width: w, height: h, duration: 5000 })`
 
 Coordinates are absolute display pixels matching the attached screenshot. An empty `plan` array is valid when no on-screen guidance is needed.
 
@@ -88,6 +98,9 @@ Coordinates are absolute display pixels matching the attached screenshot. An emp
 Tell the model to:
 
 - Use the attached screenshot to locate UI elements
-- Return pixel-accurate bounding boxes for each target
+- Return pixel-accurate action coordinates for each target
 - Keep `explanation` to one spoken sentence
 - Order `plan` steps in the sequence the user should follow
+- Use `cursor` for guidance movement and `highlight` for box emphasis
+- `label` fields may use markdown (`**bold**`, lists, `` `code` ``, links) for the on-screen widget
+- `description` is the primary field for what the pointer is targeting

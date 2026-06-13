@@ -1,3 +1,6 @@
+﻿# Cursor
+.cursor/
+
 # Dependencies
 node_modules/
 
@@ -7,30 +10,19 @@ out/
 build/
 *.tsbuildinfo
 
-# Environment & secrets
+# Environment and secrets
 .env
 .env.*
 !.env.example
 .dev.vars
+.dev.vars.*
 !.dev.vars.example
 
-# Cloudflare Workers
+# Local platform/runtime state
 .wrangler/
-
-# Electron
-*.exe
-*.dmg
-*.AppImage
-*.deb
-*.rpm
-*.snap
-*.blockmap
-latest-*.yml
-builder-debug.yml
-builder-effective-config.yaml
+.netlify/
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -39,30 +31,21 @@ pnpm-debug.log*
 
 # OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
 Thumbs.db
-ehthumbs.db
 Desktop.ini
 
-# Editor / IDE
+# Editor and IDE files
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
 *.swp
 *.swo
-*~
 
-# Test / coverage
+# Test coverage
 coverage/
 .nyc_output/
 
-# Local caches
+# Caches
 .cache/
-*.local
-
-# Optional: ML model cache (Xenova/Transformers local downloads)
-models/
+.local/

@@ -1,4 +1,5 @@
 import { getCaptureServices } from "./capture-service.js";
+import { getChatAccessibilityPreferences } from "./chat-accessibility.js";
 import { renderMarkdown } from "./markdown.js";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -10,20 +11,126 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 const INLINE_MIME_PREFIXES = ["image/", "audio/", "video/"];
 const INLINE_MIME_TYPES = new Set(["application/pdf"]);
-const TTS_ENABLED = false;
+const CHAT_CONVERSATION_STORAGE_KEY = "clarity:chat-conversation-id";
 
 const messages = [
   {
-    text: "Hey there! I'm your JAMHacks AI. Ready to build something epic? I can help with API questions, schedule info, or finding team members!",
+    text: "Hey there! I'm your Clarity AI. Ready to help you understand your screen, plan next steps, and keep moving.",
     sender: "system",
   },
 ];
 
+let conversationId = null;
 let mediaRecorder = null;
 let recordingStream = null;
 let recordedChunks = [];
 let isTranscribing = false;
 let pendingAttachments = [];
+let currentReaderAudio = null;
+let promptLoopActive = false;
+let promptLoopCancelled = false;
+let resolvePromptWait = null;
+
+class PromptCancelledError extends Error {
+  constructor() {
+    super("Prompt cancelled.");
+    this.name = "PromptCancelledError";
+  }
+}
+
+function getConversationId() {
+  if (conversationId) return conversationId;
+
+  conversationId = localStorage.getItem(CHAT_CONVERSATION_STORAGE_KEY);
+  if (!conversationId) {
+    conversationId = crypto.randomUUID();
+    localStorage.setItem(CHAT_CONVERSATION_STORAGE_KEY, conversationId);
+  }
+
+  return conversationId;
+}
+
+function createMessage(message) {
+  return {
+    id: crypto.randomUUID(),
+    time: new Date(),
+    ...message,
+  };
+}
+
+function hydrateStoredMessage(message = {}) {
+  return {
+    ...message,
+    time: message.time ? new Date(message.time) : new Date(),
+  };
+}
+
+function getPersistableMessage(message) {
+  return {
+    id: message.id,
+    text: message.text,
+    sender: message.sender,
+    time: message.time,
+    rawResponse: message.rawResponse,
+    plan: message.plan,
+    attachments: message.attachments?.map((attachment) => ({
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      contextOnly: attachment.contextOnly,
+    })),
+  };
+}
+
+async function loadChatHistory(messagesEl, typingIndicator) {
+  if (!window.chatHistory?.list) return;
+
+  try {
+    const storedMessages = await window.chatHistory.list({
+      conversationId: getConversationId(),
+    });
+    if (!Array.isArray(storedMessages) || !storedMessages.length) return;
+
+    messages.splice(0, messages.length, ...storedMessages.map(hydrateStoredMessage));
+    renderMessages(messagesEl, typingIndicator);
+  } catch (error) {
+    console.warn("Failed to load MongoDB chat history:", error);
+  }
+}
+
+async function saveChatMessage(message) {
+  if (!window.chatHistory?.save) return;
+
+  try {
+    await window.chatHistory.save({
+      conversationId: getConversationId(),
+      message: getPersistableMessage(message),
+    });
+  } catch (error) {
+    console.warn("Failed to save MongoDB chat history:", error);
+  }
+}
+
+export function cancelPrompt() {
+  if (!promptLoopActive) return false;
+
+  promptLoopCancelled = true;
+  window.aiTools?.hideNextButton?.();
+  resolvePromptWait?.();
+  return true;
+}
+
+function beginPromptLoop() {
+  promptLoopActive = true;
+  promptLoopCancelled = false;
+  resolvePromptWait = null;
+}
+
+function resetPromptLoopState() {
+  promptLoopActive = false;
+  promptLoopCancelled = false;
+  resolvePromptWait = null;
+}
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -166,9 +273,10 @@ function renderAttachmentChip(attachment, { removable = false } = {}) {
 }
 
 function renderMessageAttachments(attachments = []) {
-  if (!attachments.length) return "";
+  const visibleAttachments = attachments.filter((attachment) => !attachment.contextOnly);
+  if (!visibleAttachments.length) return "";
 
-  const items = attachments
+  const items = visibleAttachments
     .map((attachment) => {
       const thumb = attachment.previewUrl
         ? `<img class="message-attachment-thumb" src="${attachment.previewUrl}" alt="" />`
@@ -239,7 +347,7 @@ function screenFrameToAttachment(frame) {
     mimeType: "image/jpeg",
     size: Math.ceil(base64.length * 0.75),
     base64,
-    previewUrl: frame.dataUrl,
+    contextOnly: true,
   };
 }
 
@@ -257,6 +365,25 @@ async function captureScreenAttachment() {
     if (!frame) return null;
 
     return screenFrameToAttachment(frame);
+  } catch {
+    return null;
+  }
+}
+
+async function captureScreenBase64() {
+  try {
+    const { screenCapture } = getCaptureServices();
+
+    if (!screenCapture.running) {
+      const sources = await screenCapture.listSources({ types: ["screen"] });
+      if (!sources.length) return null;
+      await screenCapture.start({ sourceId: sources[0].id });
+    }
+
+    const frame = await screenCapture.captureFrameAsync({ quality: 0.65 });
+    if (!frame?.dataUrl) return null;
+
+    return dataUrlToBase64(frame.dataUrl);
   } catch {
     return null;
   }
@@ -325,8 +452,10 @@ function hideTypingIndicator(typingIndicator) {
 }
 
 function pushSystemMessage(messagesEl, typingIndicator, text) {
-  messages.push({ text, sender: "system", time: new Date() });
+  const message = createMessage({ text, sender: "system" });
+  messages.push(message);
   renderMessages(messagesEl, typingIndicator);
+  saveChatMessage(message);
 }
 
 async function decodeBlobToMonoFloat32(blob) {
@@ -477,39 +606,177 @@ async function askGemini() {
   return window.geminiChat.send({ history });
 }
 
-function speakExplanation(text) {
-  if (!TTS_ENABLED || !text || !window.speechSynthesis) return;
+function stopVoiceReaderAudio() {
+  if (!currentReaderAudio) return;
+  currentReaderAudio.pause();
+  currentReaderAudio.currentTime = 0;
+  currentReaderAudio = null;
+}
 
+function playBrowserSpeech(text) {
+  if (!("speechSynthesis" in window)) return;
+
+  stopVoiceReaderAudio();
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
+}
+
+async function speakExplanation(text) {
+  const cleanText = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!cleanText || !getChatAccessibilityPreferences().screenReader) return;
+
+  try {
+    if (!window.aiTools?.speakAccessibility) {
+      throw new Error("ElevenLabs speech bridge is unavailable.");
+    }
+
+    stopVoiceReaderAudio();
+    window.speechSynthesis?.cancel?.();
+
+    const audio = await window.aiTools.speakAccessibility(cleanText);
+    if (!audio?.base64) {
+      throw new Error("ElevenLabs returned no audio.");
+    }
+
+    currentReaderAudio = new Audio(
+      `data:${audio.mimeType || "audio/mpeg"};base64,${audio.base64}`
+    );
+    currentReaderAudio.onended = () => {
+      currentReaderAudio = null;
+    };
+    await currentReaderAudio.play();
+  } catch (error) {
+    console.warn("ElevenLabs chat reader failed:", error);
+    playBrowserSpeech(cleanText);
+  }
 }
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function executeGeminiPlan(plan) {
-  if (!Array.isArray(plan) || !plan.length || !window.aiTools) return;
+function waitForNextClick() {
+  return new Promise((resolve, reject) => {
+    if (promptLoopCancelled) {
+      reject(new PromptCancelledError());
+      return;
+    }
 
-  await window.aiTools.setCursorVisible(true);
-  await window.aiTools.clearHighlights();
+    const cleanup = () => {
+      unsubNext?.();
+      unsubCancel?.();
+      resolvePromptWait = null;
+    };
 
-  for (const step of plan) {
+    const unsubNext = window.aiTools?.onNextClicked(() => {
+      cleanup();
+      resolve();
+    });
+
+    const unsubCancel = window.aiTools?.onPromptCancelled(() => {
+      promptLoopCancelled = true;
+      window.aiTools?.hideNextButton?.();
+      cleanup();
+      reject(new PromptCancelledError());
+    });
+
+    resolvePromptWait = () => {
+      cleanup();
+      reject(new PromptCancelledError());
+    };
+  });
+}
+
+const MAX_HYBRID_STEPS = 10;
+
+async function executeSingleStep(step, stepMeta) {
+  const pointerText = step.description || step.label;
+
+  if (step.action === "cursor") {
     await window.aiTools.moveCursor({
       x: step.x,
       y: step.y,
+      description: pointerText,
+      label: pointerText,
       animate: true,
       duration: 350,
+      ...stepMeta,
     });
+    return;
+  }
+
+  if (step.action === "highlight") {
+    const centerX = step.x + Math.round(step.w / 2);
+    const centerY = step.y + Math.round(step.h / 2);
+
+    await window.aiTools.moveCursor({
+      x: centerX,
+      y: centerY,
+      description: pointerText,
+      label: pointerText,
+      animate: true,
+      duration: 350,
+      ...stepMeta,
+    });
+    await window.aiTools.clearHighlights();
     await window.aiTools.highlightRect({
       x: step.x,
       y: step.y,
       width: step.w,
       height: step.h,
-      duration: 5000,
     });
-    await delay(400);
+  }
+}
+
+async function executeHybridLoop(goal, firstStep) {
+  if (!firstStep || !window.aiTools) return;
+
+  beginPromptLoop();
+
+  await window.aiTools.ensureOverlay?.();
+  await window.aiTools.setCursorVisible(true);
+  await window.aiTools.clearHighlights();
+
+  let currentStep = firstStep;
+  let stepNumber = 1;
+
+  try {
+    while (currentStep && stepNumber <= MAX_HYBRID_STEPS && !promptLoopCancelled) {
+      await executeSingleStep(currentStep, { stepIndex: stepNumber });
+      if (promptLoopCancelled) break;
+
+      await window.aiTools.showNextButton();
+
+      try {
+        await waitForNextClick();
+      } catch (error) {
+        if (error instanceof PromptCancelledError) break;
+        throw error;
+      }
+
+      if (promptLoopCancelled) break;
+      await delay(600);
+
+      const screenshotBase64 = await captureScreenBase64();
+      const response = await window.geminiChat.step({
+        goal,
+        lastAction: currentStep.description || currentStep.label || "",
+        screenshotBase64,
+      });
+
+      const nextPlan = Array.isArray(response?.plan) ? response.plan : [];
+      currentStep = nextPlan[0] ?? null;
+      stepNumber += 1;
+    }
+  } finally {
+    resetPromptLoopState();
+    await window.aiTools.hideNextButton();
+    await window.aiTools.clearHighlights();
+    await delay(600);
+    await window.aiTools.setCursorVisible(false);
   }
 }
 
@@ -527,7 +794,9 @@ async function handleAiCommand(text) {
     }
 
     speakExplanation(explanation);
-    await executeGeminiPlan(plan);
+
+    const firstStep = plan[0] ?? null;
+    await executeHybridLoop(text, firstStep);
 
     return {
       text: explanation,
@@ -546,9 +815,21 @@ async function runCommand(text) {
   if (command === "/cursor" && parts.length >= 3) {
     const x = Number(parts[1]);
     const y = Number(parts[2]);
+    const label = parts.slice(3).join(" ").trim();
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      await window.aiTools.moveCursor({ x, y, animate: true, duration: 350 });
-      return "Moved AI cursor.";
+      await window.aiTools.ensureOverlay?.();
+      await window.aiTools.setCursorVisible(true);
+      await window.aiTools.moveCursor({
+        x,
+        y,
+        label: label || "Move here",
+        animate: true,
+        duration: 350,
+      });
+      setTimeout(() => {
+        window.aiTools.setCursorVisible(false);
+      }, 4000);
+      return label ? `Moved AI cursor: ${label}` : "Moved AI cursor.";
     }
   }
 
@@ -558,7 +839,8 @@ async function runCommand(text) {
     const width = Number(parts[3]);
     const height = Number(parts[4]);
     if ([x, y, width, height].every(Number.isFinite)) {
-      await window.aiTools.highlightRect({ x, y, width, height, duration: 5000 });
+      await window.aiTools.ensureOverlay?.();
+      await window.aiTools.highlightRect({ x, y, width, height });
       return "Added highlight.";
     }
   }
@@ -566,6 +848,13 @@ async function runCommand(text) {
   if (command === "/clear") {
     await window.aiTools.clearHighlights();
     return "Cleared highlights.";
+  }
+
+  if (command === "/cancel") {
+    if (cancelPrompt()) {
+      return "Cancelled guided prompt.";
+    }
+    return "No active prompt to cancel.";
   }
 
   const { audioCapture, screenCapture } = getCaptureServices();
@@ -623,6 +912,53 @@ function hideChatWindow() {
   window.chatWindow?.hide?.();
 }
 
+function minimizeChatWindow() {
+  window.chatWindow?.minimize?.();
+}
+
+function initChatResizeGrip() {
+  const grip = document.getElementById("chat-resize-grip");
+  if (!grip || !window.chatWindow?.resizeTo) return;
+
+  let dragState = null;
+  let pendingFrame = null;
+
+  const resizeFromPointer = (event) => {
+    if (!dragState) return;
+
+    const width = dragState.width + event.screenX - dragState.screenX;
+    const height = dragState.height + event.screenY - dragState.screenY;
+
+    if (pendingFrame) cancelAnimationFrame(pendingFrame);
+    pendingFrame = requestAnimationFrame(() => {
+      window.chatWindow.resizeTo(width, height);
+      pendingFrame = null;
+    });
+  };
+
+  const stopResize = () => {
+    dragState = null;
+    document.body.classList.remove("chat-window-resizing");
+    window.removeEventListener("pointermove", resizeFromPointer);
+    window.removeEventListener("pointerup", stopResize);
+    window.removeEventListener("pointercancel", stopResize);
+  };
+
+  grip.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    dragState = {
+      screenX: event.screenX,
+      screenY: event.screenY,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+    document.body.classList.add("chat-window-resizing");
+    window.addEventListener("pointermove", resizeFromPointer);
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+  });
+}
+
 export function initChat() {
   const messagesEl = document.getElementById("messages");
   const chatForm = document.getElementById("chat-form");
@@ -636,13 +972,15 @@ export function initChat() {
   const typingIndicator = document.getElementById("typing-indicator");
 
   renderMessages(messagesEl, typingIndicator);
+  initChatResizeGrip();
+  loadChatHistory(messagesEl, typingIndicator);
 
   chatInput.addEventListener("mousedown", () => {
     chatInput.focus();
   });
 
   closeButton?.addEventListener("click", hideChatWindow);
-  minimizeButton?.addEventListener("click", hideChatWindow);
+  minimizeButton?.addEventListener("click", minimizeChatWindow);
 
   attachButton?.addEventListener("click", () => {
     fileInput?.click();
@@ -725,8 +1063,10 @@ export function initChat() {
       return;
     }
 
-    messages.push({ text, sender: "user", time: new Date(), attachments });
+    const userMessage = createMessage({ text, sender: "user", attachments });
+    messages.push(userMessage);
     renderMessages(messagesEl, typingIndicator);
+    saveChatMessage(userMessage);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     const aiReply = await handleAiCommand(text);
@@ -734,14 +1074,15 @@ export function initChat() {
     hideTypingIndicator(typingIndicator);
 
     if (aiReply?.text) {
-      messages.push({
+      const assistantMessage = createMessage({
         text: aiReply.text,
         sender: "system",
-        time: new Date(),
         plan: aiReply.plan,
         rawResponse: aiReply.rawResponse,
       });
+      messages.push(assistantMessage);
       renderMessages(messagesEl, typingIndicator);
+      saveChatMessage(assistantMessage);
     }
 
     chatInput.focus();

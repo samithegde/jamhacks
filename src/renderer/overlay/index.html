@@ -7,16 +7,41 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob: mediastream:"
     />
-    <title>Clarity Overlay</title>
+    <title></title>
     <link rel="stylesheet" href="../styles/base.css" />
     <link rel="stylesheet" href="../styles/cursor.css" />
     <link rel="stylesheet" href="../styles/highlighter.css" />
   </head>
   <body>
+    <div id="accessibility-contrast-layer" class="accessibility-contrast-layer"></div>
+    <div id="accessibility-magnifier" class="accessibility-magnifier">
+      <div class="accessibility-magnifier__label">Magnify</div>
+    </div>
     <canvas id="highlighter-canvas" class="highlighter-canvas"></canvas>
-    <div id="ai-cursor" class="ai-cursor" aria-hidden="true">
+    <div id="accessibility-status" class="accessibility-status hidden">
+      Voice control listening
+    </div>
+    <div id="ai-cursor" class="ai-cursor hidden" aria-hidden="true">
       <div class="ai-cursor-pointer"></div>
       <div class="ai-cursor-ring"></div>
+      <div id="ai-step-widget" class="ai-step-widget hidden" aria-live="polite">
+        <div class="ai-step-widget__tail"></div>
+        <div class="ai-step-widget__card">
+          <div class="ai-step-widget__header">
+            <span class="ai-step-widget__icon" aria-hidden="true">✦</span>
+            <span id="ai-step-widget-badge" class="ai-step-widget__badge"></span>
+          </div>
+          <div id="ai-step-widget-text" class="ai-step-widget__text"></div>
+        </div>
+      </div>
+    </div>
+    <div id="ai-prompt-controls" class="ai-prompt-controls hidden">
+      <button id="ai-next-btn" class="ai-next-btn" type="button">
+        Next Step
+      </button>
+      <button id="ai-cancel-btn" class="ai-cancel-btn" type="button">
+        Cancel
+      </button>
     </div>
     <script type="module" src="../index.js"></script>
   </body>

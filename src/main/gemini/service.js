@@ -14,30 +14,38 @@ const RESPONSE_SCHEMA = {
       items: {
         type: "OBJECT",
         properties: {
+          action: {
+            type: "STRING",
+            description:
+              "The action type. Use 'cursor' for pointer guidance (x/y only) and 'highlight' for rectangular emphasis (x/y/w/h).",
+          },
           x: {
             type: "INTEGER",
-            description:
-              "The exact absolute X coordinate of the top-left corner of the item.",
+            description: "The exact absolute X coordinate in display pixels.",
           },
           y: {
             type: "INTEGER",
-            description:
-              "The exact absolute Y coordinate of the top-left corner of the item.",
+            description: "The exact absolute Y coordinate in display pixels.",
           },
           w: {
             type: "INTEGER",
-            description: "The width of the item in pixels.",
+            description: "Width in pixels. Required only when action is 'highlight'.",
           },
           h: {
             type: "INTEGER",
-            description: "The height of the item in pixels.",
+            description: "Height in pixels. Required only when action is 'highlight'.",
+          },
+          description: {
+            type: "STRING",
+            description:
+              "What the cursor is pointing at — shown in the widget beside the pointer. Supports markdown (bold, lists, code, links).",
           },
           label: {
             type: "STRING",
-            description: "The short description or name of the button.",
+            description: "Legacy alias for description.",
           },
         },
-        required: ["x", "y", "w", "h", "label"],
+        required: ["action", "x", "y", "description"],
       },
     },
   },
@@ -46,8 +54,12 @@ const RESPONSE_SCHEMA = {
 
 const SYSTEM_PROMPT =
   "Your name is Clarity. You help users learn by guiding them through what's on their screen." +
-  "Each user message may include a screenshot. Use it to locate UI elements and return pixel-accurate bounding boxes." +
-  "Respond only with JSON matching the schema: explanation is one spoken sentence; plan is an ordered list of screen targets (x, y, w, h, label)." +
+  "Each user message may include a screenshot. Use it to locate UI elements and return pixel-accurate actions." +
+  "Respond only with JSON matching the schema: explanation is one spoken sentence; plan is an ordered list of actions." +
+  "For cursor guidance actions, use action='cursor' with x, y, description only." +
+  "For highlight actions, use action='highlight' with x, y, w, h, description." +
+  "Each description explains what the pointer is targeting and appears in the on-screen widget beside the cursor." +
+  "Descriptions may use markdown for the widget (bold, lists, inline code)." +
   "Use an empty plan when no on-screen guidance is needed.";
 
 function getApiKey() {
@@ -119,17 +131,32 @@ function extractText(payload) {
 }
 
 function normalizePlanItem(item) {
+  const rawAction = String(item?.action ?? "").trim().toLowerCase();
+  const action =
+    rawAction || (item?.w != null && item?.h != null ? "highlight" : "cursor");
   const x = Math.round(Number(item?.x));
   const y = Math.round(Number(item?.y));
-  const w = Math.round(Number(item?.w));
-  const h = Math.round(Number(item?.h));
-  const label = String(item?.label ?? "").trim();
+  const description = String(item?.description ?? item?.label ?? "").trim();
 
-  if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) {
+  if (!["cursor", "highlight"].includes(action)) {
     return null;
   }
 
-  return { x, y, w, h, label };
+  if (![x, y].every(Number.isFinite) || !description) {
+    return null;
+  }
+
+  if (action === "cursor") {
+    return { action, x, y, label: description, description };
+  }
+
+  const w = Math.round(Number(item?.w));
+  const h = Math.round(Number(item?.h));
+  if (![w, h].every(Number.isFinite) || w <= 0 || h <= 0) {
+    return null;
+  }
+
+  return { action, x, y, w, h, label: description, description };
 }
 
 function parseStructuredResponse(text) {
@@ -209,8 +236,79 @@ async function chat(history) {
   return { ...structured, model };
 }
 
+const STEP_SYSTEM_PROMPT =
+  "You are a screen-navigation assistant mid-task. " +
+  "The user's original goal and the last action taken are provided. " +
+  "Look at the new screenshot and return the SINGLE next action to take, " +
+  "or an empty plan array if the task is fully complete or cannot proceed. " +
+  "The explanation field should be a brief internal note (not spoken). " +
+  "Never return more than one plan item.";
+
+async function chatStep(goal, lastActionDescription, screenshotBase64) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured. Add it to your .env file.");
+  }
+
+  const userText =
+    `Original goal: ${goal}\n` +
+    `Last action completed: ${lastActionDescription}\n` +
+    `What is the single next step? Return empty plan if done.`;
+
+  const contents = [
+    {
+      role: "user",
+      parts: [
+        { text: userText },
+        ...(screenshotBase64
+          ? [{ inlineData: { mimeType: "image/jpeg", data: screenshotBase64 } }]
+          : []),
+      ],
+    },
+  ];
+
+  const model = getModel();
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: STEP_SYSTEM_PROMPT }],
+      },
+      contents,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      payload?.error?.message ||
+      payload?.error ||
+      `Gemini step error (${response.status})`;
+    throw new Error(message);
+  }
+
+  const text = extractText(payload);
+  if (!text) {
+    throw new Error("Gemini step returned an empty response.");
+  }
+
+  const structured = parseStructuredResponse(text);
+  return { ...structured, model };
+}
+
 module.exports = {
   chat,
+  chatStep,
   getApiKey,
   getModel,
   RESPONSE_SCHEMA,
