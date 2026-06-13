@@ -3,10 +3,24 @@ const {
   sendOverlayPointAction,
   setOverlaysInteractive,
   sendToOverlays,
+  getOverlayWindows,
   getChatWindow,
   showOverlay,
   hideOverlayWindowsOnly,
 } = require("../window");
+
+function setOverlayInteractivity(interactive) {
+  if (typeof setOverlaysInteractive === "function") {
+    setOverlaysInteractive(interactive);
+    return;
+  }
+
+  for (const win of getOverlayWindows()) {
+    if (!win.isDestroyed()) {
+      win.setIgnoreMouseEvents(!interactive, { forward: !interactive });
+    }
+  }
+}
 
 function registerAiToolsIpc(ipcMain) {
   ipcMain.handle("ai-tools:cursor-move", async (_event, payload) => {
@@ -48,19 +62,19 @@ function registerAiToolsIpc(ipcMain) {
 
   ipcMain.handle("ai-tools:show-next-button", async () => {
     await showOverlay();
-    setOverlaysInteractive(true);
+    setOverlayInteractivity(true);
     sendToOverlays("ai:next-button:show");
     return { ok: true };
   });
 
   ipcMain.handle("ai-tools:hide-next-button", () => {
-    setOverlaysInteractive(false);
+    setOverlayInteractivity(false);
     sendToOverlays("ai:next-button:hide");
     return { ok: true };
   });
 
   ipcMain.on("ai-tools:next-clicked", () => {
-    setOverlaysInteractive(false);
+    setOverlayInteractivity(false);
     const chatWin = getChatWindow();
     if (chatWin && !chatWin.isDestroyed()) {
       chatWin.webContents.send("ai:next:clicked");
@@ -68,7 +82,7 @@ function registerAiToolsIpc(ipcMain) {
   });
 
   ipcMain.on("ai-tools:prompt-cancelled", () => {
-    setOverlaysInteractive(false);
+    setOverlayInteractivity(false);
     sendToOverlays("ai:next-button:hide");
     const chatWin = getChatWindow();
     if (chatWin && !chatWin.isDestroyed()) {
