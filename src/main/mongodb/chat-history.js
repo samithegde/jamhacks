@@ -25,7 +25,10 @@ async function getDb() {
     throw new Error("MONGODB_URI is not configured. Add your MongoDB Atlas URI to .env.");
   }
 
-  client = new MongoClient(uri);
+  client = new MongoClient(uri, {
+    tls: true,
+    tlsAllowInvalidCertificates: true,
+  });
   await client.connect();
   db = client.db(getDbName());
   return db;

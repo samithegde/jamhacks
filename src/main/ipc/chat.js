@@ -1,4 +1,4 @@
-const { chat, chatStep } = require("../gemini/service");
+const { chat, chatStep, refineCoordinate } = require("../gemini/service");
 
 function registerChatIpc(ipcMain) {
   ipcMain.handle("chat:send", async (_event, payload) => {
@@ -17,6 +17,15 @@ function registerChatIpc(ipcMain) {
     }
 
     return chatStep(goal, lastAction ?? "", screenshotBase64 ?? null);
+  });
+
+  ipcMain.handle("chat:refine", async (_event, payload) => {
+    const { description, croppedBase64, cropW, cropH } = payload ?? {};
+    if (!description || !croppedBase64) {
+      throw new Error("description and croppedBase64 are required.");
+    }
+
+    return refineCoordinate({ description, croppedBase64, cropW, cropH });
   });
 }
 
