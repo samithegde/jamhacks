@@ -58,7 +58,7 @@ const RESPONSE_SCHEMA = {
           isFinal: {
             type: "BOOLEAN",
             description:
-              "True when this is the last on-screen action for the user's goal. The user will see a Complete button instead of Next Step.",
+              "True when this is the last on-screen action for the user's goal. The user will see a Complete button instead of advancing by clicking the target area.",
           },
         },
         required: ["action", "description"],
@@ -524,51 +524,20 @@ async function planRetrieval(userMessage, history) {
 const REFINE_RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
-    x: {
-      type: "INTEGER",
-      description:
-        "X pixel coordinate of the element center within the cropped image",
-    },
-    y: {
-      type: "INTEGER",
-      description:
-        "Y pixel coordinate of the element center within the cropped image",
-    },
+    x: { type: "INTEGER", description: "X pixel coordinate of the element center within the cropped image" },
+    y: { type: "INTEGER", description: "Y pixel coordinate of the element center within the cropped image" },
   },
   required: ["x", "y"],
 };
 
 const REFINE_SYSTEM_PROMPT =
   "You are a pixel-accurate UI element locator. " +
-  "You will receive a cropped screenshot, a UI element description, and optional OCR hints. " +
-  "Find the interactive UI element whose visible text or icon matches the target text. " +
-  "Prefer clickable controls over static labels. " +
-  "Return the exact center pixel coordinates of that element within THIS CROPPED IMAGE. " +
+  "You will receive a cropped screenshot and a description of a UI element. " +
+  "Return the EXACT center pixel coordinates of that element within THIS CROPPED IMAGE. " +
   "Coordinates must be integers within the image bounds. " +
   "If the element is partially cut off, return the visible center.";
 
-function formatOcrHints(ocrCandidates = []) {
-  if (!Array.isArray(ocrCandidates) || !ocrCandidates.length)
-    return "OCR hints: none.";
-
-  const hints = ocrCandidates.slice(0, 3).map((box) => {
-    const x2 = Math.round(Number(box.x) + Number(box.w));
-    const y2 = Math.round(Number(box.y) + Number(box.h));
-    return `"${box.text}" at (${Math.round(Number(box.x))},${Math.round(Number(box.y))})-(${x2},${y2})`;
-  });
-
-  return `OCR hints: ${hints.join("; ")}.`;
-}
-
-async function refineCoordinate({
-  description,
-  targetText,
-  croppedBase64,
-  cropW,
-  cropH,
-  markBBox,
-  ocrCandidates,
-}) {
+async function refineCoordinate({ description, croppedBase64, cropW, cropH }) {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
@@ -583,22 +552,15 @@ async function refineCoordinate({
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: REFINE_SYSTEM_PROMPT }] },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                `Find the exact center pixel of: "${description}"\n` +
-                `Target text/icon: "${targetText || description}"\n` +
-                `Cropped image is ${cropW}x${cropH} pixels. Return coordinates within this crop only.\n` +
-                `Original mark bbox in screen CSS pixels: ${markBBox ? JSON.stringify(markBBox) : "none"}\n` +
-                formatOcrHints(ocrCandidates),
-            },
-            { inlineData: { mimeType: "image/jpeg", data: croppedBase64 } },
-          ],
-        },
-      ],
+      contents: [{
+        role: "user",
+        parts: [
+          {
+            text: `Find the exact center pixel of: "${description}"\nCropped image is ${cropW}x${cropH} pixels. Return coordinates within this crop only.`,
+          },
+          { inlineData: { mimeType: "image/jpeg", data: croppedBase64 } },
+        ],
+      }],
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: REFINE_RESPONSE_SCHEMA,
@@ -608,9 +570,7 @@ async function refineCoordinate({
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(
-      payload?.error?.message || `Gemini refine error (${response.status})`,
-    );
+    throw new Error(payload?.error?.message || `Gemini refine error (${response.status})`);
   }
 
   const text = extractText(payload);

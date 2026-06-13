@@ -1040,6 +1040,46 @@ function waitForNextClick() {
 }
 
 const MAX_HYBRID_STEPS = 10;
+const CROP_MARGIN_CSS = 300;
+const NEXT_STEP_CLICK_RADIUS = 10;
+
+async function cropBase64Image(base64, cxCSS, cyCSS) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const imgW = img.naturalWidth;
+      const imgH = img.naturalHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const scaleX = imgW / (window.screen.width * dpr);
+      const scaleY = imgH / (window.screen.height * dpr);
+
+      const imgCx = Math.round(cxCSS * dpr * scaleX);
+      const imgCy = Math.round(cyCSS * dpr * scaleY);
+      const imgMarginX = Math.round(CROP_MARGIN_CSS * dpr * scaleX);
+      const imgMarginY = Math.round(CROP_MARGIN_CSS * dpr * scaleY);
+
+      const x1 = Math.max(0, imgCx - imgMarginX);
+      const y1 = Math.max(0, imgCy - imgMarginY);
+      const x2 = Math.min(imgW, imgCx + imgMarginX);
+      const y2 = Math.min(imgH, imgCy + imgMarginY);
+      const cropW = x2 - x1;
+      const cropH = y2 - y1;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, x1, y1, cropW, cropH, 0, 0, cropW, cropH);
+
+      resolve({
+        croppedBase64: canvas.toDataURL("image/jpeg", 0.85).split(",")[1],
+        x1, y1, cropW, cropH, imgW, imgH, dpr, scaleX, scaleY,
+      });
+    };
+    img.onerror = () => reject(new Error("Failed to load screenshot for cropping."));
+    img.src = `data:image/jpeg;base64,${base64}`;
+  });
+}
 
 async function refineStepCoordinates(step) {
   if (!window.geminiChat?.refine) return step;
@@ -1157,7 +1197,21 @@ async function executeSingleStep(step, stepMeta) {
   }
 }
 
-async function executeHybridLoop(goal, firstStep, initialLocalizationContext = latestLocalizationContext) {
+function getStepClickTarget(step) {
+  if (step?.action === "highlight") {
+    return {
+      x: step.x + Math.round((step.w || 0) / 2),
+      y: step.y + Math.round((step.h || 0) / 2),
+    };
+  }
+
+  return {
+    x: step?.x,
+    y: step?.y,
+  };
+}
+
+async function executeHybridLoop(goal, firstStep) {
   if (!firstStep || !window.aiTools) return;
 
   beginPromptLoop();
@@ -1196,7 +1250,10 @@ async function executeHybridLoop(goal, firstStep, initialLocalizationContext = l
         break;
       }
 
-      await window.aiTools.showNextButton();
+      await window.aiTools.showNextButton({
+        ...getStepClickTarget(refinedStep),
+        radius: NEXT_STEP_CLICK_RADIUS,
+      });
 
       try {
         await waitForNextClick();

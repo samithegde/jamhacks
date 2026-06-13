@@ -60,10 +60,10 @@ function registerAiToolsIpc(ipcMain) {
     return { ok: true };
   });
 
-  ipcMain.handle("ai-tools:show-next-button", async () => {
+  ipcMain.handle("ai-tools:show-next-button", async (_event, payload = {}) => {
     await showOverlay();
     setOverlayInteractivity(true);
-    sendToOverlays("ai:next-button:show");
+    await sendOverlayPointAction("ai:next-button:show", payload);
     return { ok: true };
   });
 
