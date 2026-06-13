@@ -894,6 +894,7 @@ function waitForNextClick() {
 
 const MAX_HYBRID_STEPS = 10;
 const CROP_MARGIN_CSS = 300;
+const NEXT_STEP_CLICK_RADIUS = 10;
 
 async function cropBase64Image(base64, cxCSS, cyCSS) {
   return new Promise((resolve, reject) => {
@@ -1012,6 +1013,20 @@ async function executeSingleStep(step, stepMeta) {
   }
 }
 
+function getStepClickTarget(step) {
+  if (step?.action === "highlight") {
+    return {
+      x: step.x + Math.round((step.w || 0) / 2),
+      y: step.y + Math.round((step.h || 0) / 2),
+    };
+  }
+
+  return {
+    x: step?.x,
+    y: step?.y,
+  };
+}
+
 async function executeHybridLoop(goal, firstStep) {
   if (!firstStep || !window.aiTools) return;
 
@@ -1045,7 +1060,10 @@ async function executeHybridLoop(goal, firstStep) {
         break;
       }
 
-      await window.aiTools.showNextButton();
+      await window.aiTools.showNextButton({
+        ...getStepClickTarget(refinedStep),
+        radius: NEXT_STEP_CLICK_RADIUS,
+      });
 
       try {
         await waitForNextClick();
