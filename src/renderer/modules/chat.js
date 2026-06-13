@@ -1,4 +1,5 @@
 import { getCaptureServices } from "./capture-service.js";
+import { getChatAccessibilityPreferences } from "./chat-accessibility.js";
 import { renderMarkdown } from "./markdown.js";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -10,7 +11,6 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 const INLINE_MIME_PREFIXES = ["image/", "audio/", "video/"];
 const INLINE_MIME_TYPES = new Set(["application/pdf"]);
-const TTS_ENABLED = false;
 
 const messages = [
   {
@@ -24,6 +24,7 @@ let recordingStream = null;
 let recordedChunks = [];
 let isTranscribing = false;
 let pendingAttachments = [];
+let currentReaderAudio = null;
 let promptLoopActive = false;
 let promptLoopCancelled = false;
 let resolvePromptWait = null;
@@ -528,12 +529,52 @@ async function askGemini() {
   return window.geminiChat.send({ history });
 }
 
-function speakExplanation(text) {
-  if (!TTS_ENABLED || !text || !window.speechSynthesis) return;
+function stopVoiceReaderAudio() {
+  if (!currentReaderAudio) return;
+  currentReaderAudio.pause();
+  currentReaderAudio.currentTime = 0;
+  currentReaderAudio = null;
+}
 
+function playBrowserSpeech(text) {
+  if (!("speechSynthesis" in window)) return;
+
+  stopVoiceReaderAudio();
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
+}
+
+async function speakExplanation(text) {
+  const cleanText = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!cleanText || !getChatAccessibilityPreferences().screenReader) return;
+
+  try {
+    if (!window.aiTools?.speakAccessibility) {
+      throw new Error("ElevenLabs speech bridge is unavailable.");
+    }
+
+    stopVoiceReaderAudio();
+    window.speechSynthesis?.cancel?.();
+
+    const audio = await window.aiTools.speakAccessibility(cleanText);
+    if (!audio?.base64) {
+      throw new Error("ElevenLabs returned no audio.");
+    }
+
+    currentReaderAudio = new Audio(
+      `data:${audio.mimeType || "audio/mpeg"};base64,${audio.base64}`
+    );
+    currentReaderAudio.onended = () => {
+      currentReaderAudio = null;
+    };
+    await currentReaderAudio.play();
+  } catch (error) {
+    console.warn("ElevenLabs chat reader failed:", error);
+    playBrowserSpeech(cleanText);
+  }
 }
 
 function delay(ms) {

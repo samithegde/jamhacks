@@ -7,6 +7,8 @@ const DEFAULT_PREFERENCES = {
   highContrast: false,
 };
 
+let currentPreferences = { ...DEFAULT_PREFERENCES };
+
 export function initChatAccessibility() {
   applyPreferences(DEFAULT_PREFERENCES);
 
@@ -25,6 +27,10 @@ export function initChatAccessibility() {
   });
 }
 
+export function getChatAccessibilityPreferences() {
+  return { ...currentPreferences };
+}
+
 function normalizePreferences(preferences = {}) {
   return {
     largeText: Boolean(preferences.largeText),
@@ -38,6 +44,7 @@ function normalizePreferences(preferences = {}) {
 
 function applyPreferences(preferences = {}) {
   const normalized = normalizePreferences(preferences);
+  currentPreferences = normalized;
 
   document.body.classList.toggle(
     "chat-accessibility-large-text",

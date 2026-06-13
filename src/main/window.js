@@ -11,7 +11,7 @@ const CHAT_MARGIN = 24;
 const MINI_CHAT_SIZE = 56;
 const MINI_CHAT_MARGIN = 24;
 const WIN32_CAPTION_INSET = process.platform === "win32" ? 31 : 0;
-const DASHBOARD_ENABLED = false;
+const DASHBOARD_ENABLED = true;
 
 let overlayWindows = [];
 let chatWindow = null;
