@@ -796,6 +796,7 @@ module.exports = {
   sendToRenderer,
   sendOverlayPointAction,
   setOverlaysInteractive,
+  sendToOverlays,
   setOverlayAccessibilityPreferences,
   getOverlayAccessibilityPreferences,
   DASHBOARD_ENABLED,
