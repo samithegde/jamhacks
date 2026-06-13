@@ -21,6 +21,22 @@ contextBridge.exposeInMainWorld("chatWindow", {
   hide: () => ipcRenderer.invoke("window:hide-chat"),
 });
 
+contextBridge.exposeInMainWorld("dashboard", {
+  getOverlayStatus: () => ipcRenderer.invoke("get-overlay-status"),
+  showOverlay: () => ipcRenderer.invoke("show-overlay"),
+  hideOverlay: () => ipcRenderer.invoke("hide-overlay"),
+  showChat: () => ipcRenderer.invoke("show-chat"),
+  quitApp: () => ipcRenderer.invoke("quit-app"),
+  getDisplays: () => ipcRenderer.invoke("get-displays"),
+  minimizeWindow: () => ipcRenderer.invoke("minimize-window"),
+  closeWindow: () => ipcRenderer.invoke("close-window"),
+  onOverlayStateChanged: (callback) => {
+    const handler = (_event, state) => callback(state);
+    ipcRenderer.on("overlay-state-changed", handler);
+    return () => ipcRenderer.removeListener("overlay-state-changed", handler);
+  },
+});
+
 contextBridge.exposeInMainWorld("aiTools", {
   moveCursor: (payload) => ipcRenderer.invoke("ai-tools:cursor-move", payload),
   setCursorVisible: (visible) =>
