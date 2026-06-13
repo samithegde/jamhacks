@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' blob: mediastream:"
+    />
+    <title>JAMHacks AI Assistant</title>
+    <link rel="stylesheet" href="src/renderer/styles/base.css" />
+    <link rel="stylesheet" href="src/renderer/styles/chat.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="chat-window-body">
+    <div id="chat-panel" class="ai-widget glass-panel">
+      <header id="chat-header" class="chat-header">
+        <div class="chat-header-brand">
+          <div class="chat-avatar-wrap">
+            <div class="chat-avatar">
+              <span class="material-symbols-outlined">rocket_launch</span>
+            </div>
+            <div class="status-dot" aria-hidden="true"></div>
+          </div>
+          <div>
+            <h2 class="chat-title">JAMHacks Assistant</h2>
+            <p class="chat-status">
+              <span class="chat-status-dot" aria-hidden="true"></span>
+              Ready to hack
+            </p>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button
+            id="minimize-button"
+            class="icon-button"
+            type="button"
+            title="Minimize"
+            aria-label="Minimize"
+          >
+            <span class="material-symbols-outlined">remove</span>
+          </button>
+          <button
+            id="close-button"
+            class="icon-button icon-button--danger"
+            type="button"
+            title="Close"
+            aria-label="Close"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="messages" class="messages" aria-live="polite">
+        <div id="typing-indicator" class="typing-indicator hidden" aria-hidden="true">
+          <div class="ai-bubble typing-bubble">
+            <div class="typing-dots">
+              <div class="typing-dot"></div>
+              <div class="typing-dot typing-dot--delay-1"></div>
+              <div class="typing-dot typing-dot--delay-2"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="chat-footer">
+        <form id="chat-form" class="chat-form">
+          <div class="chat-input-wrap">
+            <button
+              class="input-icon-button"
+              type="button"
+              title="Attach file"
+              aria-label="Attach file"
+              disabled
+            >
+              <span class="material-symbols-outlined">attach_file</span>
+            </button>
+            <input
+              id="chat-input"
+              type="text"
+              placeholder="Ask about JAMHacks..."
+              autocomplete="off"
+            />
+            <button
+              id="mic-button"
+              class="input-icon-button mic-button"
+              type="button"
+              title="Record voice"
+              aria-label="Record voice"
+            >
+              <span class="material-symbols-outlined">mic</span>
+            </button>
+          </div>
+          <button id="send-button" class="send-button" type="submit" title="Send">
+            <span class="material-symbols-outlined">send</span>
+          </button>
+        </form>
+      </footer>
+    </div>
+
+    <script type="module" src="src/renderer/chat-index.js"></script>
+  </body>
+</html>

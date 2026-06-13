@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob: mediastream:"
+    />
+    <title>Jamhacks Overlay</title>
+    <link rel="stylesheet" href="../styles/base.css" />
+    <link rel="stylesheet" href="../styles/cursor.css" />
+    <link rel="stylesheet" href="../styles/highlighter.css" />
+  </head>
+  <body>
+    <canvas id="highlighter-canvas" class="highlighter-canvas"></canvas>
+    <div id="ai-cursor" class="ai-cursor" aria-hidden="true">
+      <div class="ai-cursor-pointer"></div>
+      <div class="ai-cursor-ring"></div>
+    </div>
+
+    <script type="module" src="../index.js"></script>
+  </body>
+</html>
