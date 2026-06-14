@@ -11,6 +11,14 @@ let preferences = { ...DEFAULT_PREFERENCES };
 let recognition = null;
 let audioContext = null;
 let magnifierAnimationFrame = null;
+let magnifierMoveHandler = null;
+let magnifierStream = null;
+let magnifierVideoEl = null;
+let magnifierCursorX = 0;
+let magnifierCursorY = 0;
+
+const MAGNIFIER_SIZE = 200;
+const MAGNIFIER_ZOOM = 2.5;
 let currentSpeechAudio = null;
 
 export function initAccessibilityOverlay() {
@@ -219,30 +227,112 @@ function updateVoiceControl(enabled) {
   }
 }
 
+async function startMagnifierCapture() {
+  if (magnifierStream || !window.capture?.listScreenSources) return;
+
+  try {
+    const sources = await window.capture.listScreenSources({ types: ["screen"] });
+    if (!sources?.length) return;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        mandatory: {
+          chromeMediaSource: "desktop",
+          chromeMediaSourceId: sources[0].id,
+          maxFrameRate: 30,
+        },
+      },
+    });
+
+    magnifierStream = stream;
+    magnifierVideoEl = document.createElement("video");
+    magnifierVideoEl.muted = true;
+    magnifierVideoEl.autoplay = true;
+    magnifierVideoEl.playsInline = true;
+    magnifierVideoEl.style.cssText =
+      "position:absolute;visibility:hidden;pointer-events:none;width:1px;height:1px;";
+    magnifierVideoEl.srcObject = stream;
+    document.body.appendChild(magnifierVideoEl);
+    await magnifierVideoEl.play();
+  } catch (err) {
+    console.warn("[magnifier] screen capture failed:", err);
+  }
+}
+
+function stopMagnifierCapture() {
+  magnifierStream?.getTracks().forEach((t) => t.stop());
+  magnifierStream = null;
+  magnifierVideoEl?.remove();
+  magnifierVideoEl = null;
+}
+
+function renderMagnifierFrame() {
+  const canvas = document.getElementById("accessibility-magnifier-canvas");
+  const video = magnifierVideoEl;
+
+  if (canvas && video?.videoWidth) {
+    const scaleX = video.videoWidth / window.screen.width;
+    const scaleY = video.videoHeight / window.screen.height;
+    const cropW = (MAGNIFIER_SIZE / MAGNIFIER_ZOOM) * scaleX;
+    const cropH = (MAGNIFIER_SIZE / MAGNIFIER_ZOOM) * scaleY;
+    const srcX = Math.max(0, Math.min(magnifierCursorX * scaleX - cropW / 2, video.videoWidth - cropW));
+    const srcY = Math.max(0, Math.min(magnifierCursorY * scaleY - cropH / 2, video.videoHeight - cropH));
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(MAGNIFIER_SIZE / 2, MAGNIFIER_SIZE / 2, MAGNIFIER_SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(video, srcX, srcY, cropW, cropH, 0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+    ctx.restore();
+  }
+
+  magnifierAnimationFrame = requestAnimationFrame(renderMagnifierFrame);
+}
+
 function updateMagnifier(enabled) {
   const magnifier = document.getElementById("accessibility-magnifier");
   if (!magnifier) return;
 
   magnifier.classList.toggle("is-active", enabled);
 
+  if (magnifierAnimationFrame) {
+    cancelAnimationFrame(magnifierAnimationFrame);
+    magnifierAnimationFrame = null;
+  }
+  if (magnifierMoveHandler) {
+    window.removeEventListener("pointermove", magnifierMoveHandler);
+    magnifierMoveHandler = null;
+  }
+
   if (!enabled) {
-    if (magnifierAnimationFrame) {
-      cancelAnimationFrame(magnifierAnimationFrame);
-      magnifierAnimationFrame = null;
-    }
+    stopMagnifierCapture();
     return;
   }
 
-  const move = () => {
-    const time = Date.now() / 1200;
-    const x = window.innerWidth / 2 + Math.cos(time) * Math.min(120, window.innerWidth * 0.12);
-    const y = window.innerHeight / 2 + Math.sin(time * 0.85) * Math.min(80, window.innerHeight * 0.1);
-    magnifier.style.left = `${x}px`;
-    magnifier.style.top = `${y}px`;
-    magnifierAnimationFrame = requestAnimationFrame(move);
-  };
+  const canvas = document.getElementById("accessibility-magnifier-canvas");
+  if (canvas) {
+    canvas.width = MAGNIFIER_SIZE;
+    canvas.height = MAGNIFIER_SIZE;
+  }
 
-  if (!magnifierAnimationFrame) move();
+  magnifierCursorX = window.innerWidth / 2;
+  magnifierCursorY = window.innerHeight / 2;
+  magnifier.style.left = `${magnifierCursorX}px`;
+  magnifier.style.top = `${magnifierCursorY}px`;
+
+  startMagnifierCapture();
+  renderMagnifierFrame();
+
+  magnifierMoveHandler = (e) => {
+    magnifierCursorX = e.clientX;
+    magnifierCursorY = e.clientY;
+    magnifier.style.left = `${e.clientX}px`;
+    magnifier.style.top = `${e.clientY}px`;
+  };
+  window.addEventListener("pointermove", magnifierMoveHandler);
 }
 
 function stopRecognition() {

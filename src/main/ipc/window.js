@@ -3,6 +3,7 @@ const {
   minimizeChatWindow,
   resizeChatWindow,
   restoreChatWindow,
+  setChatTasksDrawerOpen,
 } = require("../window");
 
 function registerWindowIpc(ipcMain) {
@@ -23,6 +24,11 @@ function registerWindowIpc(ipcMain) {
 
   ipcMain.handle("window:resize-chat", (_event, size) => {
     resizeChatWindow(size);
+    return { ok: true };
+  });
+
+  ipcMain.handle("window:set-chat-tasks-drawer", (_event, open) => {
+    setChatTasksDrawerOpen(open);
     return { ok: true };
   });
 }

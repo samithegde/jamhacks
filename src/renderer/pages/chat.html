@@ -20,6 +20,39 @@
     />
   </head>
   <body class="chat-window-body">
+    <aside
+      id="tasks-drawer"
+      class="tasks-drawer hidden"
+      aria-label="Tasks checklist"
+      aria-hidden="true"
+    >
+      <div class="tasks-drawer-header">
+        <h2 class="tasks-drawer-title">Tasks</h2>
+        <button
+          id="tasks-drawer-close"
+          class="tasks-drawer-close"
+          type="button"
+          title="Close tasks"
+          aria-label="Close tasks"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+      <form id="tasks-drawer-form" class="tasks-drawer-form">
+        <input
+          id="tasks-drawer-input"
+          class="tasks-drawer-input"
+          type="text"
+          placeholder="Add a task"
+          autocomplete="off"
+        />
+        <button class="tasks-drawer-add" type="submit" title="Add task" aria-label="Add task">
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        </button>
+      </form>
+      <div id="tasks-drawer-list" class="tasks-drawer-list" aria-live="polite"></div>
+    </aside>
+
     <div id="chat-panel" class="ai-widget glass-panel">
       <header id="chat-header" class="chat-header">
         <div class="chat-header-brand">
@@ -38,6 +71,15 @@
           </div>
         </div>
         <div class="chat-header-actions">
+          <button
+            id="tasks-popup-button"
+            class="icon-button"
+            type="button"
+            title="Tasks"
+            aria-label="Tasks"
+          >
+            <span class="material-symbols-outlined">checklist</span>
+          </button>
           <button
             id="new-chat-button"
             class="icon-button"

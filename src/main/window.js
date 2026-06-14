@@ -7,6 +7,8 @@ const CHAT_WIDTH = 420;
 const CHAT_HEIGHT = 650;
 const CHAT_MIN_WIDTH = 340;
 const CHAT_MIN_HEIGHT = 420;
+const CHAT_TASKS_TAB_GUTTER = 30;
+const CHAT_TASKS_DRAWER_WIDTH = 292;
 const CHAT_MARGIN = 24;
 const MINI_CHAT_SIZE = 56;
 const MINI_CHAT_MARGIN = 24;
@@ -17,6 +19,7 @@ let overlayWindows = [];
 let chatWindow = null;
 let miniChatWindow = null;
 let dashboardWindow = null;
+let chatTasksDrawerOpen = false;
 let overlayAccessibilityPreferences = {
   largeText: false,
   audio: false,
@@ -42,12 +45,18 @@ function applyAssistantContentProtection(win) {
 
 function getChatBounds() {
   const workArea = getWorkAreaBounds();
+  const chatWindowWidth = CHAT_WIDTH + CHAT_TASKS_TAB_GUTTER;
+
   return {
-    x: workArea.x + workArea.width - CHAT_WIDTH - CHAT_MARGIN,
+    x: workArea.x + workArea.width - chatWindowWidth - CHAT_MARGIN,
     y: workArea.y + workArea.height - CHAT_HEIGHT - CHAT_MARGIN,
-    width: CHAT_WIDTH,
+    width: chatWindowWidth,
     height: CHAT_HEIGHT,
   };
+}
+
+function getChatExtraWidth() {
+  return chatTasksDrawerOpen ? CHAT_TASKS_DRAWER_WIDTH : CHAT_TASKS_TAB_GUTTER;
 }
 
 function getMiniChatBounds() {
@@ -58,9 +67,8 @@ function getMiniChatBounds() {
     y:
       workArea.y +
       workArea.height -
-      MINI_CHAT_SIZE -
-      MINI_CHAT_MARGIN -
-      WIN32_CAPTION_INSET,
+      totalHeight -
+      MINI_CHAT_MARGIN,
     width: MINI_CHAT_SIZE,
     height: totalHeight,
   };
@@ -210,7 +218,7 @@ function createChatWindow() {
   const chatBounds = getChatBounds();
   chatWindow = new BrowserWindow({
     ...chatBounds,
-    minWidth: CHAT_MIN_WIDTH,
+    minWidth: CHAT_MIN_WIDTH + getChatExtraWidth(),
     minHeight: CHAT_MIN_HEIGHT,
     show: false,
     transparent: true,
@@ -232,6 +240,10 @@ function createChatWindow() {
   });
 
   chatWindow.setMenu(null);
+  chatWindow.setTitle("");
+  chatWindow.webContents.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
   chatWindow.setAlwaysOnTop(true, "screen-saver", 1);
   chatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   keepWindowOffTaskbar(chatWindow);
@@ -250,6 +262,7 @@ function createChatWindow() {
   chatWindow.on("focus", () => keepWindowOffTaskbar(chatWindow));
   chatWindow.on("closed", () => {
     chatWindow = null;
+    chatTasksDrawerOpen = false;
   });
 
   return chatWindow;
@@ -372,9 +385,39 @@ function resizeChatWindow(size = {}) {
   const win = getChatWindow();
   if (!win) return;
 
-  const width = Math.max(CHAT_MIN_WIDTH, Math.round(Number(size.width) || 0));
+  const minWidth = CHAT_MIN_WIDTH + getChatExtraWidth();
+  const width = Math.max(
+    minWidth,
+    Math.round(Number(size.width) || 0)
+  );
   const height = Math.max(CHAT_MIN_HEIGHT, Math.round(Number(size.height) || 0));
+  win.setMinimumSize(minWidth, CHAT_MIN_HEIGHT);
   win.setSize(width, height);
+}
+
+function setChatTasksDrawerOpen(open) {
+  const win = getChatWindow();
+  if (!win) return;
+
+  const nextOpen = Boolean(open);
+  if (chatTasksDrawerOpen === nextOpen) return;
+
+  const bounds = win.getBounds();
+  const currentExtraWidth = getChatExtraWidth();
+  const panelWidth = Math.max(CHAT_MIN_WIDTH, bounds.width - currentExtraWidth);
+  chatTasksDrawerOpen = nextOpen;
+
+  const nextExtraWidth = getChatExtraWidth();
+  const nextWidth = panelWidth + nextExtraWidth;
+  const right = bounds.x + bounds.width;
+
+  win.setMinimumSize(CHAT_MIN_WIDTH + nextExtraWidth, CHAT_MIN_HEIGHT);
+  win.setBounds({
+    x: right - nextWidth,
+    y: bounds.y,
+    width: nextWidth,
+    height: bounds.height,
+  });
 }
 
 function toggleChatWindow() {
@@ -411,6 +454,7 @@ function createDashboardWindow() {
     focusable: true,
     alwaysOnTop: false,
     fullscreen: true,
+    icon: path.join(__dirname, "../renderer/assets/clarityicon.png"),
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       nodeIntegration: false,
@@ -558,18 +602,22 @@ function getOverlayAccessibilityApplyScript(payload) {
       left: 50%;
       top: 50%;
       z-index: 2147483646;
-      width: 220px;
-      height: 220px;
+      width: 200px;
+      height: 200px;
       border-radius: 999px;
       display: none;
-      transform: translate(-50%, -50%);
-      border: 5px solid #facc15;
-      background: radial-gradient(circle, rgba(255,255,255,0.18), rgba(250,204,21,0.12) 60%, rgba(0,0,0,0.18));
-      box-shadow: 0 0 0 5px rgba(0,0,0,0.8), 0 14px 36px rgba(0,0,0,0.35);
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.88);
+      border: 3px solid rgba(250, 204, 21, 0.9);
+      background: rgba(255,255,255,0.04);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.3);
       pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
     }
     .overlay-accessibility-direct-magnifier.is-active {
       display: block;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
   `;
 
@@ -609,6 +657,17 @@ function getOverlayAccessibilityApplyScript(payload) {
 
       contrast.classList.toggle("is-active", Boolean(preferences.highContrast));
       magnifier.classList.toggle("is-active", Boolean(preferences.magnify));
+
+      if (!window._overlayMagnifierTracker) {
+        window._overlayMagnifierTracker = (e) => {
+          const m = document.getElementById("overlay-accessibility-direct-magnifier");
+          if (m) {
+            m.style.left = e.clientX + "px";
+            m.style.top = e.clientY + "px";
+          }
+        };
+        window.addEventListener("pointermove", window._overlayMagnifierTracker);
+      }
 
       const labels = [
         preferences.largeText && "Large text",
@@ -800,6 +859,7 @@ module.exports = {
   minimizeChatWindow,
   restoreChatWindow,
   resizeChatWindow,
+  setChatTasksDrawerOpen,
   toggleChatWindow,
   sendToRenderer,
   sendOverlayPointAction,

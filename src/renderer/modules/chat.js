@@ -1543,11 +1543,127 @@ export function initChat() {
   const closeButton = document.getElementById("close-button");
   const minimizeButton = document.getElementById("minimize-button");
   const typingIndicator = document.getElementById("typing-indicator");
+  const tasksPopupButton = document.getElementById("tasks-popup-button");
+  const tasksDrawer = document.getElementById("tasks-drawer");
+  const tasksDrawerClose = document.getElementById("tasks-drawer-close");
+  const tasksDrawerForm = document.getElementById("tasks-drawer-form");
+  const tasksDrawerInput = document.getElementById("tasks-drawer-input");
+  const tasksDrawerList = document.getElementById("tasks-drawer-list");
 
   newChatButton = document.getElementById("new-chat-button");
   sendButton = document.getElementById("send-button");
   chatInputEl = chatInput;
   typingIndicatorEl = typingIndicator;
+
+  // Initialize tasks drawer
+  const toggleTasksDrawer = () => {
+    const isHidden = tasksDrawer?.classList.toggle("hidden");
+    tasksDrawer?.setAttribute("aria-hidden", String(isHidden));
+  };
+
+  tasksPopupButton?.addEventListener("click", toggleTasksDrawer);
+  tasksDrawerClose?.addEventListener("click", toggleTasksDrawer);
+
+  const getStoredTasks = () => {
+    try {
+      const tasks = JSON.parse(localStorage.getItem("clarity:tasks") || "[]");
+      return Array.isArray(tasks) ? tasks : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveTasksToStorage = (tasks) => {
+    localStorage.setItem("clarity:tasks", JSON.stringify(tasks));
+  };
+
+  const renderTasksList = () => {
+    const tasks = getStoredTasks();
+    tasksDrawerList.innerHTML = tasks
+      .map(
+        (task, index) => `
+        <div class="task-item ${task.complete ? "is-complete" : ""}">
+          <button type="button" class="task-check" data-task-id="${task.id}" aria-label="${task.complete ? "Mark incomplete" : "Mark complete"}">
+            ${task.complete ? '<span class="material-symbols-outlined">done</span>' : ""}
+          </button>
+          <span class="task-name">${escapeHtml(task.title)}</span>
+          <div class="task-actions">
+            <button type="button" class="task-move-btn" data-task-id="${task.id}" data-direction="up" aria-label="Move task up" ${index === 0 ? "disabled" : ""}>
+              <span class="material-symbols-outlined">arrow_upward</span>
+            </button>
+            <button type="button" class="task-move-btn" data-task-id="${task.id}" data-direction="down" aria-label="Move task down" ${index === tasks.length - 1 ? "disabled" : ""}>
+              <span class="material-symbols-outlined">arrow_downward</span>
+            </button>
+            <button type="button" class="task-remove-btn" data-task-id="${task.id}" aria-label="Delete task">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+
+    tasksDrawerList.querySelectorAll(".task-check").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const tasks = getStoredTasks();
+        const task = tasks.find((t) => t.id === e.currentTarget.dataset.taskId);
+        if (task) {
+          task.complete = !task.complete;
+          saveTasksToStorage(tasks);
+          renderTasksList();
+        }
+      });
+    });
+
+    tasksDrawerList.querySelectorAll(".task-move-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const tasks = getStoredTasks();
+        const taskId = e.currentTarget.dataset.taskId;
+        const direction = e.currentTarget.dataset.direction;
+        const index = tasks.findIndex((t) => t.id === taskId);
+        if (index === -1) return;
+
+        if (direction === "up" && index > 0) {
+          [tasks[index], tasks[index - 1]] = [tasks[index - 1], tasks[index]];
+          saveTasksToStorage(tasks);
+          renderTasksList();
+        } else if (direction === "down" && index < tasks.length - 1) {
+          [tasks[index], tasks[index + 1]] = [tasks[index + 1], tasks[index]];
+          saveTasksToStorage(tasks);
+          renderTasksList();
+        }
+      });
+    });
+
+    tasksDrawerList.querySelectorAll(".task-remove-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const tasks = getStoredTasks().filter((t) => t.id !== e.currentTarget.dataset.taskId);
+        saveTasksToStorage(tasks);
+        renderTasksList();
+      });
+    });
+  };
+
+  tasksDrawerForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const task = tasksDrawerInput?.value.trim();
+    if (!task) return;
+
+    const tasks = getStoredTasks();
+    tasks.push({
+      id: `${Date.now()}:${Math.random().toString(16).slice(2)}`,
+      title: task,
+      complete: false,
+      createdAt: new Date().toISOString(),
+    });
+    saveTasksToStorage(tasks);
+    tasksDrawerInput.value = "";
+    renderTasksList();
+    tasksDrawerInput.focus();
+  });
+
+  // Initial render of tasks
+  renderTasksList();
 
   initChatResizeGrip();
   void bootstrapChat(messagesEl, typingIndicator);

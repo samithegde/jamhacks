@@ -308,22 +308,13 @@ export function initVirtualCursor() {
 
     function showNextMode(payload = {}) {
       nextClickTarget = getNextClickTarget(payload);
-      completeBtn?.classList.add("hidden");
       promptControls.classList.add("hidden");
-      constrainLayout();
-    }
-
-    function showCompleteMode() {
-      clearNextClickTarget();
-      completeBtn?.classList.remove("hidden");
-      promptControls.classList.remove("hidden");
       constrainLayout();
     }
 
     function hidePromptControls() {
       clearNextClickTarget();
       promptControls.classList.add("hidden");
-      completeBtn?.classList.add("hidden");
       if (widget && !widget.classList.contains("hidden")) {
         constrainLayout();
       }
@@ -334,16 +325,11 @@ export function initVirtualCursor() {
     });
 
     window.aiTools?.onCompleteButtonShow(() => {
-      showCompleteMode();
+      showNextMode();
     });
 
     window.aiTools?.onNextButtonHide(() => {
       hidePromptControls();
-    });
-
-    completeBtn?.addEventListener("click", () => {
-      hidePromptControls();
-      window.aiTools?.emitCompleteClicked();
     });
 
     cancelBtn?.addEventListener("click", () => {
@@ -353,7 +339,7 @@ export function initVirtualCursor() {
 
     document.addEventListener("click", (event) => {
       if (!nextClickTarget) return;
-      if (event.target?.closest?.("#ai-cancel-btn, #ai-complete-btn")) return;
+      if (event.target?.closest?.("#ai-cancel-btn")) return;
 
       const dx = event.clientX - nextClickTarget.x;
       const dy = event.clientY - nextClickTarget.y;
