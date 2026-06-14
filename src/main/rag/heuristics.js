@@ -1,6 +1,9 @@
 const UI_ACTION_PATTERN =
   /^(click|tap|press|select|highlight|open|go to|navigate to|scroll to|find the|show me where|move to)\b/i;
 
+const HOW_TO_UI_PATTERN =
+  /\b(how do i|how to|walk me through|show me how|guide me through)\b/i;
+
 const DOC_KEYWORD_PATTERN =
   /\b(policy|policies|document|documents|wiki|handbook|manual|according to|form using|knowledge base|procedure|guidelines|reference doc|from the doc|company|hr|benefits|vacation|compliance)\b/i;
 
@@ -56,6 +59,24 @@ function routeIntentHeuristic(userText) {
         ragQuery: "",
         intent: text,
         needsOnScreenGuidance: true,
+      },
+    };
+  }
+
+  if (
+    HOW_TO_UI_PATTERN.test(text) &&
+    !DOC_KEYWORD_PATTERN.test(text) &&
+    !LIBRARY_KEYWORD_PATTERN.test(text)
+  ) {
+    return {
+      skip: true,
+      plan: {
+        requiresRag: true,
+        query: text,
+        ragQuery: text,
+        intent: text,
+        needsOnScreenGuidance: true,
+        retrievalSource: "web",
       },
     };
   }

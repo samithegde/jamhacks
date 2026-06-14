@@ -161,10 +161,110 @@ function isInteractiveWidgetPlan(widget) {
 }
 
 const INTERACTIVE_INTENT_RE =
-  /\b(quiz|flash\s*cards?|self[- ]?test|practice|playground|drag|connect|interactive|test me|test my|test\s+me\s+on|quiz me|multiple choice|fill in the blank)\b/i;
+  /\b(quiz|flash\s*cards?|self[- ]?test|practice|playground|drag|connect|interactive|test me|test my|test\s+me\s+on|quiz me|multiple choice|fill in the blank|test (?:your|my) knowledge|knowledge check|check (?:your|my) understanding)\b/i;
 
 function userWantsInteractiveWidget(prompt) {
   return INTERACTIVE_INTENT_RE.test(String(prompt || ""));
+}
+
+function inferInteractiveWidgetType(prompt) {
+  const text = String(prompt || "").toLowerCase();
+  if (/\b(code|playground|run|debug|snippet|function|program)\b/.test(text)) {
+    return "code-playground";
+  }
+  if (/\b(graph|map|connect|relationship|concept map|mind map)\b/.test(text)) {
+    return "concept-graph";
+  }
+  return "interactive-quiz";
+}
+
+function extractTopicFromPrompt(prompt) {
+  const text = String(prompt || "").trim();
+  const patterns = [
+    /\b(?:quiz|test|practice)\s+(?:me\s+)?(?:on|about|for)\s+(.+)/i,
+    /\btest (?:your|my) knowledge (?:of|on|about)\s+(.+)/i,
+    /\bgive me (?:a )?quiz (?:on|about)\s+(.+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (match?.[1]) {
+      return match[1].replace(/[?.!]+$/, "").trim();
+    }
+  }
+
+  return text.slice(0, 80) || "the topic";
+}
+
+function buildInteractivePlanFromClassic(classic, userPrompt) {
+  const explanation = String(classic?.explanation || "").trim();
+  const topic = extractTopicFromPrompt(userPrompt);
+  const widgetType = inferInteractiveWidgetType(userPrompt);
+  const title =
+    widgetType === "interactive-quiz"
+      ? `${topic.charAt(0).toUpperCase()}${topic.slice(1)} Quiz`
+      : widgetType === "code-playground"
+        ? `${topic} Playground`
+        : `${topic} Concept Map`;
+
+  return {
+    widgetType,
+    title,
+    explanation,
+    spokenSummary: explanation.slice(0, 280) || undefined,
+    designPlan: {
+      objective: `Help the learner practice and check understanding of ${topic}.`,
+      userFlow: [
+        "Read the prompt or question",
+        "Interact with the widget controls",
+        "Receive immediate feedback",
+        "Continue until complete",
+      ],
+      stateKeys: {
+        step: "number — current item index",
+        score: "number — correct answers",
+        selected: "string|null — current selection",
+        complete: "boolean — whether finished",
+      },
+      uiSections: ["header", "progress", "content", "controls", "feedback"],
+      contentOutline:
+        explanation ||
+        `Create ${widgetType === "interactive-quiz" ? "multiple-choice or short-answer" : "hands-on"} practice items about ${topic}.`,
+      fallbackExplanation: explanation.slice(0, 500) || undefined,
+    },
+  };
+}
+
+function promoteClassicToInteractivePlanIfNeeded(plan, userPrompt) {
+  if (!plan || plan.widgetType !== "classic" || !userWantsInteractiveWidget(userPrompt)) {
+    return plan;
+  }
+  return buildInteractivePlanFromClassic(plan, userPrompt);
+}
+
+function stripInteractiveBlueprint(plan) {
+  if (!isInteractiveWidget(plan) || isInteractiveWidgetPlan(plan)) {
+    return plan;
+  }
+
+  const explanation = String(
+    plan.explanation || plan.spokenSummary || plan.title || "",
+  ).trim();
+
+  return {
+    widgetType: plan.widgetType,
+    title: String(plan.title || plan.widgetTitle || "Practice").trim(),
+    explanation,
+    spokenSummary: plan.spokenSummary,
+    designPlan: {
+      objective: explanation.slice(0, 240) || "Interactive practice",
+      userFlow: ["Read prompt", "Interact", "Check result"],
+      stateKeys: { step: "number", score: "number" },
+      uiSections: ["header", "content", "controls"],
+      contentOutline: explanation || "Interactive practice items",
+      fallbackExplanation: plan.spokenSummary || explanation.slice(0, 500) || undefined,
+    },
+  };
 }
 
 const DESIGN_PLAN_JSON_SCHEMA = {
@@ -373,7 +473,8 @@ const GEMINI_LEARNING_WIDGET_PLAN_SCHEMA = {
         widgetType: {
           type: "STRING",
           enum: ["interactive-quiz", "code-playground", "concept-graph"],
-          description: "Hands-on practice widget — design plan only, no implementation code.",
+          description:
+            "Hands-on practice widget — return build directions in designPlan only; Groq implements the UI.",
         },
         widgetTitle: {
           type: "STRING",
@@ -714,6 +815,10 @@ module.exports = {
   isGeminiInteractiveWidgetPayload,
   isGeminiInteractivePlanPayload,
   userWantsInteractiveWidget,
+  inferInteractiveWidgetType,
+  buildInteractivePlanFromClassic,
+  promoteClassicToInteractivePlanIfNeeded,
+  stripInteractiveBlueprint,
   resolveOllamaLearningWidgetPlanSchema,
   resolveOllamaInteractiveWidgetSchema,
   resolveOllamaInteractiveImplementationSchema,

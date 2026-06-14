@@ -29,6 +29,14 @@ describe("routeIntentHeuristic", () => {
     expect(result.plan.libraryName).toMatch(/react/i);
   });
 
+  it("routes how-to app questions to web search with on-screen guidance", () => {
+    const result = routeIntentHeuristic("how do i cad a 3d cube in onshape");
+    expect(result.skip).toBe(true);
+    expect(result.plan.requiresRag).toBe(true);
+    expect(result.plan.needsOnScreenGuidance).toBe(true);
+    expect(result.plan.retrievalSource).toBe("web");
+  });
+
   it("defers to LLM router for ambiguous messages", () => {
     const result = routeIntentHeuristic("Help me finish this task");
     expect(result.skip).toBe(false);

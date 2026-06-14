@@ -224,6 +224,7 @@ describe("learning-widget-schema", () => {
 
     expect(userWantsInteractiveWidget("Give me a quiz on photosynthesis")).toBe(true);
     expect(userWantsInteractiveWidget("can you test me on the periodic table")).toBe(true);
+    expect(userWantsInteractiveWidget("Let's test your knowledge of photosynthesis")).toBe(true);
     expect(userWantsInteractiveWidget("Explain photosynthesis")).toBe(false);
 
     expect(resolveOllamaLearningWidgetPlanSchema().required).toEqual(["widgetType"]);
@@ -352,6 +353,39 @@ describe("learning-widget-schema", () => {
     expect(result.widgetType).toBe("interactive-quiz");
     expect(result.title).toBe("Water Cycle Quiz");
     expect(result.mutationLogic).toContain("next");
+  });
+
+  it("promotes classic plans to interactive design plans for quiz prompts", () => {
+    const {
+      promoteClassicToInteractivePlanIfNeeded,
+      stripInteractiveBlueprint,
+      isInteractiveWidgetPlan,
+    } = require("../../../src/main/ai/learning-widget-schema.js");
+
+    const promoted = promoteClassicToInteractivePlanIfNeeded(
+      {
+        widgetType: "classic",
+        explanation: "Let's test your knowledge of photosynthesis!",
+        diagramCode: "",
+      },
+      "Let's test your knowledge of photosynthesis",
+    );
+
+    expect(promoted.widgetType).toBe("interactive-quiz");
+    expect(promoted.title.toLowerCase()).toContain("photosynthesis");
+    expect(promoted.designPlan.contentOutline).toContain("photosynthesis");
+    expect(isInteractiveWidgetPlan(promoted)).toBe(true);
+
+    const stripped = stripInteractiveBlueprint({
+      widgetType: "interactive-quiz",
+      title: "Quiz",
+      htmlLayout: '<button data-action="next">Next</button>',
+      mutationLogic: "state.step += 1;",
+    });
+
+    expect(stripped.designPlan.objective).toBeTruthy();
+    expect(stripped.htmlLayout).toBeUndefined();
+    expect(isInteractiveWidgetPlan(stripped)).toBe(true);
   });
 
   it("INTERACTIVE_WIDGET_JSON_SCHEMA matches the five-field interactive contract", () => {

@@ -1436,6 +1436,7 @@ async function executeHybridLoop(goal, firstStep) {
   let currentStep = firstStep;
   let stepNumber = 1;
   let prefetchedCapture = null;
+  const completedActions = [];
 
   try {
     while (currentStep && stepNumber <= MAX_HYBRID_STEPS && !promptLoopCancelled && !aiCancelled) {
@@ -1447,6 +1448,11 @@ async function executeHybridLoop(goal, firstStep) {
       const refinedStep = await refineStepCoordinates(resolvedStep);
       assertNotCancelled();
       await executeSingleStep(refinedStep, { stepIndex: stepNumber });
+      completedActions.push({
+        stepNumber,
+        description: currentStep.description || currentStep.label || "",
+        action: currentStep.action || "cursor",
+      });
       if (promptLoopCancelled || aiCancelled) break;
 
       prefetchedCapture = captureScreenBase64();
@@ -1489,6 +1495,7 @@ async function executeHybridLoop(goal, firstStep) {
       const response = await window.geminiChat.step({
         goal,
         lastAction: currentStep.description || currentStep.label || "",
+        completedActions: tutorMode ? [] : completedActions,
         screenshotBase64,
         mode: tutorMode ? "tutor" : "navigation",
         activitySessionId: getActivitySessionId(),

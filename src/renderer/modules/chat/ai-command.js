@@ -329,8 +329,9 @@ async function executeHybridLoop(goal, firstStep) {
       const response = await window.geminiChat.step({
         goal,
         lastAction: currentStep.description || currentStep.label || "",
-        completedActions,
+        completedActions: isTutorModeEnabled() ? [] : completedActions,
         screenshotBase64,
+        mode: isTutorModeEnabled() ? "tutor" : "navigation",
       });
 
       const nextPlan = Array.isArray(response?.plan) ? response.plan : [];

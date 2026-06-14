@@ -4,6 +4,7 @@ const {
   normalizePlanItem,
   TUTOR_PLAN_RETRIEVAL_SYSTEM_PROMPT,
 } = require("../gemini/service");
+const { buildNavigationStepUserText } = require("../ai/step-context");
 const { parseJsonFromModelText } = require("../ai/parse-model-json");
 const {
   buildImplementationMessages,
@@ -62,8 +63,10 @@ const PLAN_RETRIEVAL_SYSTEM_PROMPT =
 
 const STEP_SYSTEM_PROMPT =
   "You are a screen-navigation assistant mid-task. " +
-  "The user's original goal and the last action taken are provided as text only (no screenshot). " +
-  "Return the SINGLE next action to take based on workflow context, " +
+  "The user's original goal, a numbered list of completed steps, and the last action taken may be provided as text only (no screenshot). " +
+  "Use the completed-step list for workflow progress, but infer the next target from current context. " +
+  "Do not repeat steps already listed as completed unless context shows they failed. " +
+  "Return the SINGLE next action to take, " +
   "or an empty plan array if the task is fully complete or cannot proceed. " +
   "Return bbox as [ymin, xmin, ymax, xmax] on a 0-1000 scale for the next target. " +
   "Set isFinal=true on the plan item when it is the last action the user must take. " +
@@ -275,7 +278,7 @@ async function chat(history, { recipe, mode } = {}) {
   }
 
   const systemPrompt =
-    resolveSystemPrompt(mode) + buildRecipeBlock(recipe, { mode });
+    resolveSystemPrompt(mode, recipe) + buildRecipeBlock(recipe, { mode });
   const { text, model } = await generateChat({
     systemPrompt,
     messages,
@@ -304,18 +307,16 @@ async function chatStep(
   goal,
   lastActionDescription,
   _screenshotBase64,
-  { recipe, mode } = {},
+  { recipe, mode, completedActions } = {},
 ) {
-  let userText =
-    `Original goal: ${goal}\n` +
-    `Last action completed: ${lastActionDescription}\n` +
-    `What is the single next step? Return empty plan if done.\n` +
-    SCREENSHOT_OMITTED_NOTE;
+  let userText = buildNavigationStepUserText({
+    goal,
+    lastAction: lastActionDescription,
+    completedActions: mode === "tutor" ? [] : completedActions,
+    recipe,
+  });
 
-  if (recipe?.chunks?.length) {
-    const recipeSummary = recipe.chunks.map((c) => c.text).join("\n\n");
-    userText = `[Workflow recipe]\n${recipeSummary}\n\n${userText}`;
-  }
+  userText = `${userText}\n${SCREENSHOT_OMITTED_NOTE}`;
 
   const userMessage = {
     role: "user",

@@ -15,7 +15,6 @@ const SCREEN_EDGE_PADDING = 8;
 const CURSOR_OFFSET_X = 28;
 const PROMPT_CONTROLS_OFFSET_X = 40;
 const PROMPT_CONTROLS_OFFSET_Y = 28;
-const NEXT_CLICK_RADIUS = 10;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -78,12 +77,12 @@ export function initVirtualCursor() {
   if (!cursor) return;
 
   const promptControls = document.getElementById("ai-prompt-controls");
+  const nextBtn = document.getElementById("ai-next-btn");
   const completeBtn = document.getElementById("ai-complete-btn");
   const cancelBtn = document.getElementById("ai-cancel-btn");
 
   let state = { ...DEFAULTS };
   let revealTimer = null;
-  let nextClickTarget = null;
 
   function applyPosition(x, y, animate, duration) {
     cursor.style.transition = animate
@@ -285,68 +284,55 @@ export function initVirtualCursor() {
     if (!visible) hideStepWidget();
   });
 
-  if (promptControls) {
-    function clearNextClickTarget() {
-      nextClickTarget = null;
+  if (promptControls && nextBtn) {
+    function showNextMode() {
+      nextBtn.classList.remove("hidden");
+      completeBtn?.classList.add("hidden");
+      promptControls.classList.remove("hidden");
+      constrainLayout();
     }
 
-    function getNextClickTarget(payload = {}) {
-      const x = Number(payload.x ?? state.x);
-      const y = Number(payload.y ?? state.y);
-      const radius = Number(payload.radius ?? NEXT_CLICK_RADIUS);
-
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-
-      return {
-        x,
-        y,
-        radius: Number.isFinite(radius) && radius > 0
-          ? radius
-          : NEXT_CLICK_RADIUS,
-      };
-    }
-
-    function showNextMode(payload = {}) {
-      nextClickTarget = getNextClickTarget(payload);
-      promptControls.classList.add("hidden");
+    function showCompleteMode() {
+      nextBtn.classList.add("hidden");
+      completeBtn?.classList.remove("hidden");
+      promptControls.classList.remove("hidden");
       constrainLayout();
     }
 
     function hidePromptControls() {
-      clearNextClickTarget();
       promptControls.classList.add("hidden");
+      nextBtn.classList.remove("hidden");
+      completeBtn?.classList.add("hidden");
       if (widget && !widget.classList.contains("hidden")) {
         constrainLayout();
       }
     }
 
-    window.aiTools?.onNextButtonShow((payload) => {
-      showNextMode(payload);
+    window.aiTools?.onNextButtonShow(() => {
+      showNextMode();
     });
 
     window.aiTools?.onCompleteButtonShow(() => {
-      showNextMode();
+      showCompleteMode();
     });
 
     window.aiTools?.onNextButtonHide(() => {
       hidePromptControls();
     });
 
+    nextBtn.addEventListener("click", () => {
+      hidePromptControls();
+      window.aiTools?.emitNextClicked();
+    });
+
+    completeBtn?.addEventListener("click", () => {
+      hidePromptControls();
+      window.aiTools?.emitCompleteClicked();
+    });
+
     cancelBtn?.addEventListener("click", () => {
       hidePromptControls();
       window.aiTools?.emitPromptCancelled();
-    });
-
-    document.addEventListener("click", (event) => {
-      if (!nextClickTarget) return;
-      if (event.target?.closest?.("#ai-cancel-btn")) return;
-
-      const dx = event.clientX - nextClickTarget.x;
-      const dy = event.clientY - nextClickTarget.y;
-      if (Math.hypot(dx, dy) > nextClickTarget.radius) return;
-
-      hidePromptControls();
-      window.aiTools?.emitNextClicked();
     });
   }
 

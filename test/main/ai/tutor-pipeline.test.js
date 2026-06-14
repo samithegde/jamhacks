@@ -145,7 +145,7 @@ describe("tutor pipeline", () => {
     );
   });
 
-  it("skips Groq when Gemini already returned a blueprint", async () => {
+  it("strips Gemini blueprints and still runs Groq implementation", async () => {
     gemini.generateLearningWidget.mockResolvedValue({
       object: {
         widgetType: "interactive-quiz",
@@ -159,6 +159,10 @@ describe("tutor pipeline", () => {
       retrieval: null,
     });
     groq.isConfigured.mockReturnValue(true);
+    groq.implementInteractiveWidget.mockResolvedValue({
+      object: implementation,
+      model: "llama-3.3-70b-versatile",
+    });
 
     const result = await tutor.generateLearningWidget({
       userPrompt: "Quiz me",
@@ -168,8 +172,43 @@ describe("tutor pipeline", () => {
 
     expect(result.widget.widgetType).toBe("interactive-quiz");
     expect(result.widget.htmlLayout).toContain("data-action");
-    expect(result.implProvider).toBe("gemini");
-    expect(groq.implementInteractiveWidget).not.toHaveBeenCalled();
+    expect(result.implProvider).toBe("groq");
+    expect(groq.implementInteractiveWidget).toHaveBeenCalledOnce();
+  });
+
+  it("promotes classic Gemini plans to interactive design plans for quiz prompts", async () => {
+    gemini.generateLearningWidget.mockResolvedValue({
+      object: {
+        widgetType: "classic",
+        explanation:
+          "Let's test your knowledge of photosynthesis! This quiz will cover key concepts.",
+        diagramCode: "",
+      },
+      model: "gemini-2.5-flash",
+      retrieval: null,
+    });
+    groq.isConfigured.mockReturnValue(true);
+    groq.implementInteractiveWidget.mockResolvedValue({
+      object: implementation,
+      model: "llama-3.3-70b-versatile",
+    });
+
+    const result = await tutor.generateLearningWidget({
+      userPrompt: "Let's test your knowledge of photosynthesis",
+      history: [{ sender: "user", text: "Let's test your knowledge of photosynthesis" }],
+      useGemini: true,
+    });
+
+    expect(result.widget.widgetType).toBe("interactive-quiz");
+    expect(result.implProvider).toBe("groq");
+    expect(groq.implementInteractiveWidget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        designPlan: expect.objectContaining({
+          objective: expect.stringContaining("photosynthesis"),
+          contentOutline: expect.stringContaining("photosynthesis"),
+        }),
+      }),
+    );
   });
 
   it("degrades to classic when Groq is not configured", async () => {

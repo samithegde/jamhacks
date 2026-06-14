@@ -462,7 +462,7 @@ function registerChatIpc(ipcMain) {
 
     const startedAt = Date.now();
 
-    const { goal, lastAction, screenshotBase64, activitySessionId: payloadSessionId } =
+    const { goal, lastAction, screenshotBase64, completedActions, activitySessionId: payloadSessionId } =
 
       payload ?? {};
 
@@ -496,6 +496,8 @@ function registerChatIpc(ipcMain) {
 
         hasScreenshot: Boolean(screenshotBase64),
 
+        completedStepCount: Array.isArray(completedActions) ? completedActions.length : 0,
+
         provider,
 
         mode,
@@ -513,6 +515,8 @@ function registerChatIpc(ipcMain) {
         recipe: sessionRecipe,
 
         mode,
+
+        completedActions,
 
       });
 

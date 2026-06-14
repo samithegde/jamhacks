@@ -13,6 +13,9 @@ const KNOWN_GROQ_MODELS = new Set([
   "llama3-8b-8192",
   "mixtral-8x7b-32768",
   "gemma2-9b-it",
+  "qwen-32b-coder",
+  "qwen-qwq-32b",
+  "qwen2.5-coder-32b-instruct",
 ]);
 const GROQ_API_BASE = "https://api.groq.com/openai/v1";
 const DEFAULT_GROQ_TIMEOUT_MS = 120_000;

@@ -5,13 +5,14 @@ const {
 } = require("./learning-widget-schema");
 
 const WIDGET_IMPLEMENTATION_SYSTEM_PROMPT =
-  "You implement interactive learning widgets from a Gemini-authored design plan." +
+  "You implement interactive learning widgets from a Gemini-authored designPlan." +
+  " You run on Groq cloud and produce the runnable widget JSON." +
   " Respond with structured JSON only." +
   "\n\n" +
   "Output fields and runtime contract:\n" +
   buildInteractiveWidgetImplementationInstructions() +
   "\n\n" +
-  "Follow the Gemini widget instructions closely. Keep the widget self-contained and accessible.";
+  "Follow the Gemini designPlan and widget instructions closely. Keep the widget self-contained and accessible.";
 
 function buildImplementationMessages({
   designPlan,

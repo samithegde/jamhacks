@@ -8,11 +8,14 @@ const {
   buildScreenContext,
   extractLastUserPrompt,
   userWantsInteractiveWidget,
+  promoteClassicToInteractivePlanIfNeeded,
+  stripInteractiveBlueprint,
 } = require("./learning-widget-schema");
 
 const TUTOR_WIDGET_SYSTEM_PROMPT =
-  "Your name is Clarity in Tutor Mode — a patient study companion." +
+  "Your name is Clarity in Tutor Mode — a patient study companion and widget planner." +
   " Respond with structured JSON only." +
+  " You plan learning widgets; a separate Groq-hosted model implements interactive UI from your designPlan." +
   "\n\n" +
   "Always set widgetType to choose the widget shape:" +
   "\n" +
@@ -20,11 +23,13 @@ const TUTOR_WIDGET_SYSTEM_PROMPT =
   "\n" +
   "- interactive-quiz, code-playground, or concept-graph: hands-on widgets. Fields: explanation (full spoken and chat answer), widgetTitle, spokenSummary (optional shorter TTS), and designPlan." +
   "\n" +
-  "For interactive types, always include a full explanation plus designPlan — no HTML, CSS, or JavaScript." +
+  "For interactive types you are a planner only — return widgetTitle, explanation, spokenSummary, and a complete designPlan." +
+  " Never return htmlLayout, scopedCss, initialState, mutationLogic, interactions, or stateBindings." +
   " designPlan fields: objective, userFlow, stateKeys, uiSections, contentOutline, fallbackExplanation." +
-  " The designPlan is the widget-building script passed to the implementation model; explanation is the learner-facing answer in chat." +
+  " Write designPlan as explicit build directions: what to show, how the learner interacts, what state to track, and the quiz items or playground behavior in contentOutline." +
+  " The designPlan is passed to Groq for implementation; explanation is the learner-facing answer in chat." +
   "\n\n" +
-  "Prefer classic for pure explanations; prefer an interactive widgetType when practice, quizzing, or exploration helps learning." +
+  "Prefer classic for pure explanations; use an interactive widgetType when practice, quizzing, testing knowledge, or hands-on exploration helps learning." +
   " Ground answers in retrieved study material when provided." +
   " Ask a brief check-for-understanding question at the end when appropriate.";
 
@@ -128,7 +133,9 @@ async function generateLearningWidget({ userPrompt, screenContext, recipe, histo
     screenContext: context,
   });
 
-  const plan = parseLearningWidgetPlan(planResult.object);
+  let plan = parseLearningWidgetPlan(planResult.object);
+  plan = promoteClassicToInteractivePlanIfNeeded(plan, prompt);
+  plan = stripInteractiveBlueprint(plan);
   validateParsedWidget(plan);
 
   const retrieval = planResult.retrieval ?? buildRetrievalMeta(recipe);
@@ -142,12 +149,7 @@ async function generateLearningWidget({ userPrompt, screenContext, recipe, histo
   }
 
   if (!isInteractiveWidgetPlan(plan)) {
-    return {
-      widget: plan,
-      model: planResult.model,
-      retrieval,
-      implProvider: "gemini",
-    };
+    throw new Error("Interactive widget plan is missing designPlan after normalization.");
   }
 
   try {

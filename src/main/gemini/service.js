@@ -1,15 +1,66 @@
 const { parseBboxArray } = require("../../shared/localization-coords");
+const {
+  buildNavigationStepUserText,
+  buildRecipeBlock,
+  buildNavigationSystemAddon,
+} = require("../ai/step-context");
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_GEMINI_TIMEOUT_MS = 90_000;
 const WIDGET_GEMINI_TIMEOUT_MS = 120_000;
+const GEMINI_MAX_RETRIES = 3;
+const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 function getGeminiTimeoutMs(kind = "default") {
   const raw = process.env.GEMINI_REQUEST_TIMEOUT_MS?.trim();
   const parsed = raw ? Number(raw) : NaN;
   if (Number.isFinite(parsed) && parsed > 0) return parsed;
   return kind === "widget" ? WIDGET_GEMINI_TIMEOUT_MS : DEFAULT_GEMINI_TIMEOUT_MS;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getGeminiErrorMessage(payload, status) {
+  return (
+    payload?.error?.message ||
+    payload?.error ||
+    `Gemini API error (${status})`
+  );
+}
+
+function isRetryableGeminiFailure(response, payload) {
+  const message = String(getGeminiErrorMessage(payload, response?.status)).toLowerCase();
+  if (
+    message.includes("quota") ||
+    message.includes("rate limit") ||
+    message.includes("resource exhausted")
+  ) {
+    return false;
+  }
+
+  if (RETRYABLE_HTTP_STATUSES.has(response?.status)) return true;
+
+  return (
+    message.includes("authentication backend unavailable") ||
+    message.includes("service unavailable") ||
+    message.includes("overloaded") ||
+    message.includes("internal error")
+  );
+}
+
+function isRetryableGeminiNetworkError(error) {
+  if (!error || error.name === "AbortError") return false;
+  const message = String(error.message || "").toLowerCase();
+  return (
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("econnreset") ||
+    message.includes("socket") ||
+    message.includes("authentication backend unavailable")
+  );
 }
 
 async function fetchGemini(url, options, timeoutMs = DEFAULT_GEMINI_TIMEOUT_MS) {
@@ -25,6 +76,36 @@ async function fetchGemini(url, options, timeoutMs = DEFAULT_GEMINI_TIMEOUT_MS) 
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function requestGemini(url, options, timeoutMs = DEFAULT_GEMINI_TIMEOUT_MS) {
+  let lastError = new Error("Gemini request failed.");
+
+  for (let attempt = 0; attempt < GEMINI_MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await fetchGemini(url, options, timeoutMs);
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.ok) return payload;
+
+      const message = getGeminiErrorMessage(payload, response.status);
+      lastError = new Error(message);
+
+      if (!isRetryableGeminiFailure(response, payload) || attempt === GEMINI_MAX_RETRIES - 1) {
+        throw lastError;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === GEMINI_MAX_RETRIES - 1 || !isRetryableGeminiNetworkError(lastError)) {
+        throw lastError;
+      }
+    }
+
+    await sleep(500 * (attempt + 1));
+  }
+
+  throw lastError;
 }
 
 const RESPONSE_SCHEMA = {
@@ -391,34 +472,12 @@ function parseStructuredResponse(text) {
   };
 }
 
-function buildRecipeBlock(recipe, { mode } = {}) {
-  if (!recipe?.chunks?.length) return "";
-
-  const sections = recipe.chunks
-    .map((chunk) => `[Source: ${chunk.source}]\n${chunk.text}`)
-    .join("\n\n---\n\n");
-
-  if (mode === "tutor") {
-    return (
-      "\n\n[STUDY KNOWLEDGE BASE]\n" +
-      sections +
-      "\n\n[INSTRUCTION] The knowledge base above contains study material. " +
-      "Ground your answer in these sources when relevant. " +
-      "For classic widgets, use diagramCode for Mermaid when it helps and widgetSummary for a short overlay caption. " +
-      "For quiz, practice, test-me, or hands-on requests, use an interactive widgetType with widgetTitle and designPlan only — never HTML, CSS, or JS."
-    );
+function resolveSystemPrompt(mode, recipe) {
+  const base = mode === "tutor" ? TUTOR_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  if (mode !== "tutor") {
+    return base + buildNavigationSystemAddon(recipe);
   }
-
-  return (
-    "\n\n[EXTERNAL KNOWLEDGE]\n" +
-    sections +
-    "\n\n[INSTRUCTION] The excerpts above were retrieved from live documentation or web sources. " +
-    "Use them to answer accurately. When building a UI plan, follow steps described in the sources — do not invent steps not supported by the retrieved content."
-  );
-}
-
-function resolveSystemPrompt(mode) {
-  return mode === "tutor" ? TUTOR_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  return base;
 }
 
 function resolveStepSystemPrompt(mode) {
@@ -452,9 +511,9 @@ async function chat(history, { recipe, mode } = {}) {
 
   const model = getModel();
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
-  const systemPrompt = resolveSystemPrompt(mode) + buildRecipeBlock(recipe, { mode });
+  const systemPrompt = resolveSystemPrompt(mode, recipe) + buildRecipeBlock(recipe, { mode });
 
-  const response = await fetchGemini(url, {
+  const payload = await requestGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -471,15 +530,6 @@ async function chat(history, { recipe, mode } = {}) {
       },
     }),
   });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message =
-      payload?.error?.message ||
-      payload?.error ||
-      `Gemini API error (${response.status})`;
-    throw new Error(message);
-  }
 
   const text = extractText(payload);
   if (!text) {
@@ -501,9 +551,10 @@ async function chat(history, { recipe, mode } = {}) {
 
 const STEP_SYSTEM_PROMPT =
   "You are a screen-navigation assistant mid-task. " +
-  "The user's original goal and the last action taken are provided. " +
-  "Look at the new screenshot and return the SINGLE next action to take, " +
+  "The user's original goal, a numbered list of completed steps, and the last action taken may be provided. " +
+  "Look at the new screenshot as the primary signal and return the SINGLE next action to take, " +
   "or an empty plan array if the task is fully complete or cannot proceed. " +
+  "Do not repeat steps already listed as completed unless the screenshot shows they failed. " +
   "Return bbox as [ymin, xmin, ymax, xmax] on a 0-1000 scale for the next target. " +
   "Set isFinal=true on the plan item when it is the last action the user must take. " +
   "The explanation field should be a brief internal note (not spoken). " +
@@ -513,7 +564,7 @@ async function chatStep(
   goal,
   lastActionDescription,
   screenshotBase64,
-  { recipe, mode } = {},
+  { recipe, mode, completedActions } = {},
 ) {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -522,15 +573,12 @@ async function chatStep(
     );
   }
 
-  let userText =
-    `Original goal: ${goal}\n` +
-    `Last action completed: ${lastActionDescription}\n` +
-    `What is the single next step? Return empty plan if done.`;
-
-  if (recipe?.chunks?.length) {
-    const recipeSummary = recipe.chunks.map((c) => c.text).join("\n\n");
-    userText = `[Workflow recipe]\n${recipeSummary}\n\n${userText}`;
-  }
+  const userText = buildNavigationStepUserText({
+    goal,
+    lastAction: lastActionDescription,
+    completedActions: mode === "tutor" ? [] : completedActions,
+    recipe,
+  });
 
   const contents = [
     {
@@ -547,7 +595,7 @@ async function chatStep(
   const model = getModel();
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
 
-  const response = await fetchGemini(url, {
+  const payload = await requestGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -564,15 +612,6 @@ async function chatStep(
       },
     }),
   });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message =
-      payload?.error?.message ||
-      payload?.error ||
-      `Gemini step error (${response.status})`;
-    throw new Error(message);
-  }
 
   const text = extractText(payload);
   if (!text) {
@@ -604,13 +643,16 @@ async function generateLearningWidget(history, { recipe, systemPrompt, screenCon
   const userPrompt = extractLastUserPrompt(history);
   const wantsInteractive = userWantsInteractiveWidget(userPrompt);
   let planNudge =
-    "\n\nSelect widgetType. For classic, return explanation (full answer), optional diagramCode (raw Mermaid), and widgetSummary (brief overlay caption when diagramCode is set — not a duplicate of explanation). " +
-    "For interactive types, return widgetTitle, a full explanation, and designPlan only — no HTML, CSS, or JS.";
+    "\n\nYou are the widget planner only. Select widgetType. " +
+    "For classic, return explanation (full answer), optional diagramCode (raw Mermaid), and widgetSummary (brief overlay caption when diagramCode is set — not a duplicate of explanation). " +
+    "For interactive types, return widgetTitle, a full explanation, and designPlan build directions only — never htmlLayout, scopedCss, initialState, mutationLogic, or other implementation code. " +
+    "designPlan must include objective, contentOutline, userFlow, stateKeys, and uiSections describing how Groq should build the widget.";
   if (wantsInteractive) {
     planNudge +=
-      "\n\nThe user asked for practice or quizzing — you MUST use an interactive widgetType " +
+      "\n\nThe user asked for practice, quizzing, or knowledge testing — you MUST use an interactive widgetType " +
       "(interactive-quiz, code-playground, or concept-graph) with a full explanation and complete designPlan " +
-      "(objective, contentOutline, userFlow, stateKeys, uiSections). Do not use classic.";
+      "(objective, contentOutline, userFlow, stateKeys, uiSections). Do not use classic. " +
+      "Put quiz questions, answer choices, and interaction steps in designPlan.contentOutline.";
   }
   if (lastEntry.role === "user") {
     lastEntry.parts.push({ text: planNudge });
@@ -626,7 +668,7 @@ async function generateLearningWidget(history, { recipe, systemPrompt, screenCon
   const instruction =
     String(systemPrompt || "").trim() + buildRecipeBlock(recipe, { mode: "tutor" });
 
-  const response = await fetchGemini(
+  const payload = await requestGemini(
     url,
     {
       method: "POST",
@@ -647,15 +689,6 @@ async function generateLearningWidget(history, { recipe, systemPrompt, screenCon
     },
     getGeminiTimeoutMs("widget"),
   );
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message =
-      payload?.error?.message ||
-      payload?.error ||
-      `Gemini tutor widget error (${response.status})`;
-    throw new Error(message);
-  }
 
   const text = extractText(payload);
   if (!text) {
@@ -703,7 +736,7 @@ async function planRetrieval(userMessage, history, { mode } = {}) {
   const retrievalPrompt =
     mode === "tutor" ? TUTOR_PLAN_RETRIEVAL_SYSTEM_PROMPT : PLAN_RETRIEVAL_SYSTEM_PROMPT;
 
-  const response = await fetchGemini(url, {
+  const payload = await requestGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -720,13 +753,6 @@ async function planRetrieval(userMessage, history, { mode } = {}) {
       },
     }),
   });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      payload?.error?.message || `Gemini plan error (${response.status})`,
-    );
-  }
 
   const text = extractText(payload);
   try {
