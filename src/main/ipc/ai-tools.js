@@ -162,6 +162,19 @@ function registerAiToolsIpc(ipcMain) {
       chatWin.webContents.send("ai:complete:clicked");
     }
   });
+
+  ipcMain.handle("ai-tools:learning-widget-show", async (_event, payload = {}) => {
+    await showOverlay();
+    setOverlaysInteractive(true);
+    sendToOverlays("ai:learning-widget:show", payload);
+    return { ok: true };
+  });
+
+  ipcMain.handle("ai-tools:learning-widget-hide", () => {
+    sendToOverlays("ai:learning-widget:hide");
+    setOverlaysInteractive(false);
+    return { ok: true };
+  });
 }
 
 module.exports = { registerAiToolsIpc };

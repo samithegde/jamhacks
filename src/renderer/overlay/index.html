@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob: mediastream:"
+      content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; media-src 'self' blob: mediastream:"
     />
     <title></title>
     <link rel="stylesheet" href="../styles/base.css" />
     <link rel="stylesheet" href="../styles/cursor.css" />
     <link rel="stylesheet" href="../styles/highlighter.css" />
+    <link rel="stylesheet" href="../styles/learning-widget.css" />
   </head>
   <body>
     <div id="accessibility-contrast-layer" class="accessibility-contrast-layer"></div>
@@ -47,6 +48,27 @@
       <button id="ai-complete-btn" class="ai-complete-btn hidden" type="button">
         Complete
       </button>
+    </div>
+    <div id="ai-learning-widget" class="ai-learning-widget hidden" aria-live="polite">
+      <div class="ai-learning-widget__card">
+        <button
+          id="ai-learning-widget-close"
+          class="ai-learning-widget__close"
+          type="button"
+          aria-label="Close learning widget"
+        >
+          x
+        </button>
+        <div class="ai-learning-widget__header" title="Drag to move">
+          <span class="ai-learning-widget__icon" aria-hidden="true">✦</span>
+          <span class="ai-learning-widget__badge">Tutor</span>
+        </div>
+        <div id="ai-learning-widget-explanation" class="ai-learning-widget__explanation"></div>
+        <div id="ai-learning-widget-diagram" class="ai-learning-widget__diagram hidden">
+          <div id="ai-learning-widget-mermaid" class="mermaid"></div>
+        </div>
+        <div id="ai-learning-widget-blueprint-host" class="ai-learning-widget__blueprint hidden"></div>
+      </div>
     </div>
     <script type="module" src="../index.js"></script>
   </body>

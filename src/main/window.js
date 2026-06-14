@@ -274,7 +274,7 @@ function createMiniChatWindow() {
     transparent: true,
     resizable: false,
     movable: false,
-    focusable: false,
+    focusable: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: false,

@@ -1,0 +1,23 @@
+@tailwind utilities;
+
+:host {
+  display: block;
+  color: rgb(248 250 252);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: border-box;
+}
+
+:host button,
+:host input,
+:host select,
+:host textarea {
+  font: inherit;
+}

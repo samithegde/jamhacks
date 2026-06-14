@@ -14,6 +14,8 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build:dir": "electron-builder --dir",
+    "build:widget-css": "node scripts/build-widget-tailwind.mjs",
+    "postinstall": "npm run build:widget-css",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -45,6 +47,10 @@
     "@cloudflare/workers-types": "^4.20250613.0",
     "electron": "^35.0.0",
     "electron-builder": "^25.1.8",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.28.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "happy-dom": "^20.10.3",
     "typescript": "^5.8.3",
     "vitest": "^4.1.8",
@@ -54,10 +60,15 @@
     "@lancedb/lancedb": "^0.30.0",
     "@upstash/context7-sdk": "^0.2.0",
     "@xenova/transformers": "^2.17.2",
+    "ai": "^6.0.204",
+    "ai-sdk-ollama": "^3.8.7",
     "dompurify": "^3.4.10",
     "marked": "^18.0.5",
     "mermaid": "^11.15.0",
     "mongodb": "^7.3.0",
-    "moondream": "^0.2.0"
+    "moondream": "^0.2.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
   }
 }

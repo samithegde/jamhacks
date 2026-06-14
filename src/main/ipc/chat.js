@@ -2,6 +2,7 @@ const {
   chat,
   chatStep,
   planRetrieval,
+  generateTutorWidget,
   getActiveProvider,
 } = require("../ai/provider");
 const { retrieve, getProviderStatus } = require("../rag/retrieve");
@@ -244,10 +245,20 @@ function logModelResponse(sessionId, result, { phase = "model.response" } = {}) 
 
       retrieval: result.retrieval || null,
 
+      widgetType: result.widget?.widgetType ?? null,
+
+      implProvider: result.implProvider ?? null,
+
+      degraded: result.degraded ?? false,
+
       raw:
         result.text ||
         JSON.stringify(
-          { explanation: result.explanation, plan: result.plan },
+          {
+            explanation: result.explanation,
+            plan: result.plan,
+            widget: result.widget ?? null,
+          },
           null,
           2,
         ),
@@ -344,7 +355,10 @@ function registerChatIpc(ipcMain) {
 
     try {
 
-      const result = await chat(history, { recipe, mode });
+      const result =
+        mode === "tutor"
+          ? await generateTutorWidget(history, { recipe })
+          : await chat(history, { recipe, mode });
 
       logModelResponse(activitySessionId, result);
 

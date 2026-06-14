@@ -1089,18 +1089,7 @@ async function askGemini() {
     throw new Error("Gemini bridge unavailable. Restart the app after preload updates.");
   }
 
-  const history = messages
-    .filter((msg) => msg.sender === "user" || (msg.sender === "system" && msg.rawResponse))
-    .map(({ text, sender, attachments, rawResponse }) => ({
-      text: sender === "system" && rawResponse ? rawResponse : text,
-      sender,
-      attachments: attachments?.map(({ name, mimeType, base64, textContent }) => ({
-        name,
-        mimeType,
-        base64,
-        textContent,
-      })),
-    }));
+  const history = buildSendHistory(messages, tutorMode);
 
   return window.geminiChat.send({
     history,
@@ -1112,6 +1101,40 @@ async function askGemini() {
     }
     return result;
   });
+}
+
+function buildSendHistory(messageList, isTutorMode) {
+  return messageList
+    .filter((msg) => msg.sender === "user" || (msg.sender === "system" && msg.rawResponse))
+    .map(({ text, sender, attachments, rawResponse }) => {
+      const displayText = String(text || "").trim();
+      const historyText = isTutorMode
+        ? displayText
+        : sender === "system" && rawResponse
+          ? rawResponse
+          : text;
+
+      const historyAttachments = isTutorMode
+        ? (attachments || [])
+            .filter((attachment) => attachment?.textContent)
+            .map(({ name, mimeType, textContent }) => ({
+              name,
+              mimeType,
+              textContent,
+            }))
+        : (attachments || []).map(({ name, mimeType, base64, textContent }) => ({
+            name,
+            mimeType,
+            base64,
+            textContent,
+          }));
+
+      return {
+        text: historyText,
+        sender,
+        attachments: historyAttachments,
+      };
+    });
 }
 
 function stopVoiceReaderAudio() {
@@ -1395,53 +1418,6 @@ function getStepClickTarget(step) {
   };
 }
 
-async function executeTutorVisuals(plan) {
-  if (!Array.isArray(plan) || !plan.length || !window.aiTools) return;
-
-  await window.aiTools.ensureOverlay?.();
-  await window.aiTools.setCursorVisible(false);
-
-  const annotations = [];
-
-  for (const step of plan) {
-    const asHighlight = { ...step, action: "highlight" };
-    const resolved = resolveStepBBox(asHighlight);
-    if (!resolved) continue;
-
-    const refined = await refineStepCoordinates(resolved);
-    if (!Number.isFinite(refined?.x) || !Number.isFinite(refined?.y)) continue;
-
-    const width = Math.max(
-      1,
-      Math.round(Number(refined.w ?? resolved.w ?? resolved.markBBox?.w ?? 40)),
-    );
-    const height = Math.max(
-      1,
-      Math.round(Number(refined.h ?? resolved.h ?? resolved.markBBox?.h ?? 40)),
-    );
-
-    annotations.push({
-      x: refined.x,
-      y: refined.y,
-      width,
-      height,
-      style: "tutor",
-      label: refined.description || refined.label || "",
-    });
-  }
-
-  if (annotations.length) {
-    await window.aiTools.setAnnotations(annotations);
-    void logChatActivity({
-      phase: "action",
-      message: `Tutor mode: placed ${annotations.length} highlight annotation(s).`,
-      detail: { count: annotations.length },
-    });
-  } else {
-    await window.aiTools.clearAnnotations?.();
-  }
-}
-
 async function executeHybridLoop(goal, firstStep) {
   if (!firstStep || !window.aiTools) return;
 
@@ -1555,23 +1531,55 @@ async function handleAiCommand(text) {
 
     const response = await askGemini();
     assertNotCancelled();
-    const explanation = (response?.explanation || "").trim();
-    const plan = Array.isArray(response?.plan) ? response.plan : [];
+    const widget = response?.widget ?? null;
+    const isInteractive =
+      widget?.widgetType === "interactive-quiz" ||
+      widget?.widgetType === "code-playground" ||
+      widget?.widgetType === "concept-graph";
+    const explanation = isInteractive
+      ? String(
+          widget?.explanation ?? widget?.spokenSummary ?? widget?.title ?? response?.explanation ?? "",
+        ).trim()
+      : String(response?.explanation || "").trim();
 
     if (!explanation) {
-      throw new Error("Gemini returned an empty explanation.");
+      throw new Error("AI returned an empty explanation.");
     }
-
-    speakExplanation(explanation);
+    const plan = Array.isArray(response?.plan) ? response.plan : [];
+    const ttsText =
+      tutorMode && isInteractive
+        ? (widget.spokenSummary ?? widget.explanation ?? widget.title ?? explanation)
+        : explanation;
+    speakExplanation(ttsText);
     assertNotCancelled();
 
     const firstStep = plan[0] ?? null;
-    if (tutorMode && plan.length) {
-      void logChatActivity({
-        phase: "action",
-        message: `Tutor mode: rendering ${plan.length} highlight(s) on screen.`,
-      });
-      await executeTutorVisuals(plan);
+
+    if (tutorMode) {
+      void window.aiTools?.clearAnnotations?.();
+      if (widget) {
+        void logChatActivity({
+          phase: "action",
+          message: "Tutor mode: showing learning widget on overlay.",
+          detail: {
+            widgetType: widget.widgetType ?? "classic",
+            hasDiagram: Boolean(widget.diagramCode),
+          },
+        });
+        void (async () => {
+          try {
+            await window.aiTools.ensureOverlay?.();
+            await window.aiTools.showLearningWidget?.(widget);
+          } catch (overlayError) {
+            console.warn("Learning widget overlay failed:", overlayError);
+          }
+        })();
+      } else {
+        void logChatActivity({
+          phase: "action",
+          message: "No on-screen guidance needed for this reply.",
+        });
+      }
     } else if (firstStep) {
       await executeHybridLoop(text, firstStep);
     } else {
@@ -1594,10 +1602,18 @@ async function handleAiCommand(text) {
         ? `\n\n*Sources${via ? ` (${via})` : ""}: ${retrieval.sources.join(", ")}*`
         : "";
 
+    const chatExplanation =
+      tutorMode && isInteractive
+        ? (widget.explanation ?? widget.spokenSummary ?? widget.title ?? explanation)
+        : tutorMode && widget?.diagramCode
+          ? widget.explanation
+          : explanation;
+
     return {
-      text: explanation + sourceNote,
+      text: chatExplanation + sourceNote,
       plan,
-      rawResponse: response?.text || JSON.stringify({ explanation, plan }),
+      widget,
+      rawResponse: response?.text || JSON.stringify({ explanation, plan, widget }),
     };
   } catch (error) {
     if (
@@ -1656,6 +1672,7 @@ async function runCommand(text) {
   if (command === "/clear") {
     await window.aiTools.clearHighlights();
     await window.aiTools.clearAnnotations?.();
+    await window.aiTools.hideLearningWidget?.();
     return "Cleared highlights.";
   }
 
@@ -1863,11 +1880,14 @@ export function initChat() {
   tutorModeToggle?.addEventListener("click", () => {
     saveTutorMode(!tutorMode);
     updateTutorModeToggle(tutorModeToggle);
+    if (!tutorMode) {
+      void window.aiTools?.hideLearningWidget?.();
+    }
     pushSystemMessage(
       messagesEl,
       typingIndicator,
       tutorMode
-        ? "Tutor mode enabled — I'll explain concepts with diagrams and on-screen highlights."
+        ? "Tutor mode enabled — I'll explain concepts with diagrams in the learning widget."
         : "Tutor mode disabled — back to navigation assistant mode.",
     );
   });

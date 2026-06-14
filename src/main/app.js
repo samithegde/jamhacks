@@ -10,6 +10,7 @@ const { logMoondreamStartupStatus } = require("./localization/moondream-service"
 const { getActiveProvider } = require("./ai/provider");
 const ollama = require("./ollama/service");
 const gemini = require("./gemini/service");
+const groq = require("./groq/service");
 
 function loadEnvFile() {
   const envPath = path.join(__dirname, "../../.env");
@@ -43,6 +44,13 @@ function logLlmStartupStatus() {
   }
 
   console.log(`[LLM] Using Gemini (${gemini.getModel()}).`);
+  if (groq.isConfigured()) {
+    console.log(`[LLM] Groq tutor widget implementation enabled (${groq.getModel()}).`);
+  } else {
+    console.log(
+      "[LLM] GROQ_API_KEY not set — interactive tutor widgets will fall back to classic explanations.",
+    );
+  }
 }
 
 logLlmStartupStatus();

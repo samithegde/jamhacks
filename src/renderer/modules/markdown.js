@@ -1,5 +1,6 @@
 import { marked } from "../vendor/marked.esm.js";
 import DOMPurify from "../vendor/purify.es.mjs";
+import { MERMAID_FENCE_RE, normalizeDiagramCode } from "./mermaid-normalize.js";
 
 marked.setOptions({
   breaks: true,
@@ -22,8 +23,11 @@ const ALLOWED_ATTR = [
 const MERMAID_DIAGRAM_START =
   /^(?:graph|flowchart)\s+(?:TD|TB|BT|RL|LR)\b/im;
 
-const MERMAID_FENCE =
-  /```\s*mermaid\b[^\n]*\n([\s\S]*?)```/gi;
+const MARKED_MERMAID_CODE =
+  /<pre><code(?:\s+class="language-mermaid")?>([\s\S]*?)<\/code><\/pre>/gi;
+
+const MARKED_INLINE_MERMAID =
+  /<p>\s*<code>(mermaid(?:\s+(?:graph|flowchart)\b[\s\S]*?))<\/code>\s*<\/p>/gi;
 
 if (typeof DOMPurify.addHook === "function") {
   DOMPurify.addHook("afterSanitizeAttributes", (node) => {
@@ -68,15 +72,39 @@ export function normalizeMermaidInText(text) {
   return result;
 }
 
+function decodeHtmlEntities(html) {
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(html ?? "");
+  return textarea.value;
+}
+
+function buildMermaidDiv(code) {
+  const normalized = normalizeDiagramCode(code);
+  if (!normalized) return "";
+  return `<div class="mermaid" data-mermaid-encoded="${encodeMermaidSource(normalized)}"></div>`;
+}
+
 function extractMermaidToPlaceholders(text) {
   const blocks = [];
-  const processed = text.replace(MERMAID_FENCE, (_match, code) => {
+  const processed = text.replace(MERMAID_FENCE_RE, (_match, code) => {
     const token = mermaidPlaceholder(blocks.length);
-    blocks.push(String(code).trim());
+    blocks.push(normalizeDiagramCode(code));
     return `\n\n${token}\n\n`;
   });
 
   return { text: processed, blocks };
+}
+
+function recoverMermaidFromMarkedHtml(html) {
+  let result = html.replace(MARKED_MERMAID_CODE, (_match, code) =>
+    buildMermaidDiv(decodeHtmlEntities(code)),
+  );
+
+  result = result.replace(MARKED_INLINE_MERMAID, (_match, code) =>
+    buildMermaidDiv(decodeHtmlEntities(code)),
+  );
+
+  return result;
 }
 
 function injectMermaidPlaceholders(html, blocks) {
@@ -84,7 +112,7 @@ function injectMermaidPlaceholders(html, blocks) {
 
   blocks.forEach((code, index) => {
     const token = mermaidPlaceholder(index);
-    const div = `<div class="mermaid" data-mermaid-encoded="${encodeMermaidSource(code)}"></div>`;
+    const div = buildMermaidDiv(code);
     const wrapped = new RegExp(`<p>\\s*${token}\\s*</p>`, "g");
     result = result.replace(wrapped, div);
     result = result.replaceAll(token, div);
@@ -106,7 +134,8 @@ export function renderMarkdown(text) {
   const normalized = normalizeMermaidInText(text);
   const { text: withPlaceholders, blocks } = extractMermaidToPlaceholders(normalized);
   const html = marked.parse(withPlaceholders);
-  const withDiagrams = injectMermaidPlaceholders(html, blocks);
+  const recovered = recoverMermaidFromMarkedHtml(html);
+  const withDiagrams = injectMermaidPlaceholders(recovered, blocks);
   const sanitized = DOMPurify.sanitize(withDiagrams, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
@@ -137,6 +166,15 @@ async function ensureMermaid() {
   });
   mermaidReady = true;
   return mermaid;
+}
+
+export function prepareMermaidNode(node, code) {
+  if (!node) return;
+  const normalized = normalizeDiagramCode(code);
+  if (!normalized) return;
+  node.textContent = "";
+  node.removeAttribute("data-processed");
+  node.setAttribute("data-mermaid-encoded", encodeMermaidSource(normalized));
 }
 
 export async function enhanceMermaidDiagrams(containerEl) {

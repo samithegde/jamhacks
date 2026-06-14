@@ -1,5 +1,7 @@
 const gemini = require("../gemini/service");
 const ollama = require("../ollama/service");
+const tutor = require("./tutor");
+const { isInteractiveWidget } = require("./learning-widget-schema");
 
 function useGeminiModel() {
   const raw =
@@ -33,10 +35,35 @@ function planRetrieval(userMessage, history, options) {
     : ollama.planRetrieval(userMessage, history, options);
 }
 
+async function generateTutorWidget(history, { recipe } = {}) {
+  const { widget, model, retrieval, implProvider, degraded } = await tutor.generateLearningWidget({
+    history,
+    recipe,
+    useGemini: useGeminiModel(),
+  });
+
+  const explanation = isInteractiveWidget(widget)
+    ? String(
+        widget.explanation ?? widget.spokenSummary ?? widget.title ?? "",
+      ).trim()
+    : String(widget.explanation ?? "").trim();
+
+  return {
+    explanation,
+    plan: [],
+    widget,
+    model,
+    retrieval,
+    implProvider: implProvider ?? null,
+    degraded: degraded ?? false,
+  };
+}
+
 module.exports = {
   chat,
   chatStep,
   planRetrieval,
+  generateTutorWidget,
   useGeminiModel,
   getActiveProvider,
 };

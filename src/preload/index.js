@@ -188,6 +188,19 @@ contextBridge.exposeInMainWorld("aiTools", {
     ipcRenderer.on("ai:highlighter:clear", handler);
     return () => ipcRenderer.removeListener("ai:highlighter:clear", handler);
   },
+  showLearningWidget: (payload) =>
+    ipcRenderer.invoke("ai-tools:learning-widget-show", payload),
+  hideLearningWidget: () => ipcRenderer.invoke("ai-tools:learning-widget-hide"),
+  onLearningWidgetShow: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("ai:learning-widget:show", handler);
+    return () => ipcRenderer.removeListener("ai:learning-widget:show", handler);
+  },
+  onLearningWidgetHide: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on("ai:learning-widget:hide", handler);
+    return () => ipcRenderer.removeListener("ai:learning-widget:hide", handler);
+  },
   onAccessibilityPreferencesChanged: (callback) => {
     const handler = (_event, preferences) => callback(preferences);
     ipcRenderer.on("accessibility:preferences-changed", handler);

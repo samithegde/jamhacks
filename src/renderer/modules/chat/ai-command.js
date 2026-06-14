@@ -260,39 +260,7 @@ export function getStepClickTarget(step) {
   };
 }
 
-export async function executeTutorVisuals(plan) {
-  if (!Array.isArray(plan) || !plan.length || !window.aiTools) return;
-
-  await window.aiTools.ensureOverlay?.();
-  await window.aiTools.setCursorVisible(false);
-
-  const annotations = [];
-
-  for (const step of plan) {
-    const resolved = resolveStepBBox({ ...step, action: "highlight" });
-    if (!resolved) continue;
-
-    const refined = await refineStepCoordinates(resolved);
-    if (!Number.isFinite(refined?.x) || !Number.isFinite(refined?.y)) continue;
-
-    annotations.push({
-      x: refined.x,
-      y: refined.y,
-      width: Math.max(1, Math.round(Number(refined.w ?? resolved.w ?? 40))),
-      height: Math.max(1, Math.round(Number(refined.h ?? resolved.h ?? 40))),
-      style: "tutor",
-      label: refined.description || refined.label || "",
-    });
-  }
-
-  if (annotations.length) {
-    await window.aiTools.setAnnotations(annotations);
-  } else {
-    await window.aiTools.clearAnnotations?.();
-  }
-}
-
-export async function executeHybridLoop(goal, firstStep) {
+async function executeHybridLoop(goal, firstStep) {
   if (!firstStep || !window.aiTools) return;
 
   beginPromptLoop();
@@ -408,9 +376,7 @@ export async function handleAiCommand(text) {
     speakExplanation(explanation);
 
     const firstStep = plan[0] ?? null;
-    if (isTutorModeEnabled() && plan.length) {
-      await executeTutorVisuals(plan);
-    } else if (firstStep) {
+    if (firstStep) {
       await executeHybridLoop(text, firstStep);
     }
 

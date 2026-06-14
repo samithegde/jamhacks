@@ -1,0 +1,178 @@
+.ai-learning-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  width: min(360px, calc(100vw - 48px));
+  max-height: min(70vh, 520px);
+  pointer-events: auto;
+}
+
+.ai-learning-widget.hidden {
+  display: none;
+}
+
+.ai-learning-widget__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(129, 140, 248, 0.45);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  max-height: inherit;
+  overflow: hidden auto;
+}
+
+.ai-learning-widget__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.85);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ai-learning-widget__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.ai-learning-widget__close:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.95);
+  outline-offset: 2px;
+}
+
+.ai-learning-widget__card {
+  position: relative;
+}
+
+.ai-learning-widget__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 28px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.ai-learning-widget.is-dragging .ai-learning-widget__header {
+  cursor: grabbing;
+}
+
+.ai-learning-widget.is-positioned {
+  right: auto;
+  bottom: auto;
+}
+
+.ai-learning-widget.is-dragging {
+  animation: none;
+}
+
+body.ai-learning-widget-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.ai-learning-widget__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.25);
+  color: rgba(199, 210, 254, 0.95);
+  font-size: 12px;
+}
+
+.ai-learning-widget__badge {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(199, 210, 254, 0.95);
+}
+
+.ai-learning-widget__explanation {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ai-learning-widget__explanation .message-markdown > :first-child {
+  margin-top: 0;
+}
+
+.ai-learning-widget__explanation .message-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.ai-learning-widget__explanation .message-markdown p {
+  margin: 0 0 0.65em;
+}
+
+.ai-learning-widget__diagram {
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.55);
+  overflow-x: auto;
+}
+
+.ai-learning-widget__diagram.hidden {
+  display: none;
+}
+
+.ai-learning-widget__diagram .mermaid {
+  min-height: 48px;
+}
+
+.ai-learning-widget.is-entering {
+  animation: learning-widget-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes learning-widget-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+body.accessibility-high-contrast .ai-learning-widget__card {
+  border-color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.92);
+}
+
+body.accessibility-large-text .ai-learning-widget__explanation,
+body.accessibility-large-text .ai-learning-widget__highlights li {
+  font-size: 16px;
+}
+
+.ai-learning-widget__blueprint {
+  min-height: 120px;
+  max-height: 380px;
+  overflow: hidden auto;
+  border-radius: 10px;
+}
+
+.ai-learning-widget__blueprint.hidden {
+  display: none;
+}
+
+.ai-learning-widget__explanation.hidden {
+  display: none;
+}

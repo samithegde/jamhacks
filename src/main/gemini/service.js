@@ -2,6 +2,30 @@ const { parseBboxArray } = require("../../shared/localization-coords");
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const DEFAULT_GEMINI_TIMEOUT_MS = 90_000;
+const WIDGET_GEMINI_TIMEOUT_MS = 120_000;
+
+function getGeminiTimeoutMs(kind = "default") {
+  const raw = process.env.GEMINI_REQUEST_TIMEOUT_MS?.trim();
+  const parsed = raw ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return kind === "widget" ? WIDGET_GEMINI_TIMEOUT_MS : DEFAULT_GEMINI_TIMEOUT_MS;
+}
+
+async function fetchGemini(url, options, timeoutMs = DEFAULT_GEMINI_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Gemini request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -87,13 +111,10 @@ const SYSTEM_PROMPT =
 const TUTOR_SYSTEM_PROMPT =
   "Your name is Clarity in Tutor Mode — a patient study companion, not a task executor." +
   "Each user message may include a screenshot for context." +
-  "Respond only with JSON matching the schema: explanation is the spoken reply; plan is an optional ordered list of on-screen actions." +
+  "Respond only with JSON matching the schema: explanation is the spoken reply; plan must always be []." +
   "When explaining concepts, ground answers in retrieved study material when provided." +
   "Include a markdown fenced code block with language mermaid inside explanation when a diagram clarifies the concept (flowcharts, cycles, hierarchies, processes)." +
-  "Use plan[] with action='highlight' and tight bbox to emphasize on-screen elements the user asks about (e.g. 'this diagram', 'what is this', 'on my screen')." +
-  "Prefer highlight over cursor for tutoring; use cursor only when pointing to a specific clickable control the user must press." +
-  "Default plan=[] for pure conceptual questions with no on-screen referent." +
-  "When plan is non-empty, each item must include bbox as [ymin, xmin, ymax, xmax] on a 0-1000 scale relative to the screenshot." +
+  "Do not add on-screen pointer or highlight actions in tutor mode — explanations and diagrams belong in the learning widget only." +
   "Ask a brief check-for-understanding question at the end of explanation when appropriate." +
   "Descriptions may use markdown for the on-screen widget (bold, lists, inline code).";
 
@@ -104,6 +125,14 @@ const TUTOR_PLAN_RETRIEVAL_SYSTEM_PROMPT =
   "ragQuery (optimized search query for study materials — rephrase as a study question), " +
   "needsOnScreenGuidance (true when the user references something visible on screen — 'this', 'here', 'on my screen', 'in this diagram'; false for abstract concept questions), " +
   "targetApp (omit unless the user is clearly asking about a specific app's UI).";
+
+const { parseJsonFromModelText } = require("../ai/parse-model-json");
+const {
+  GEMINI_INTERACTIVE_WIDGET_SCHEMA: INTERACTIVE_WIDGET_GEMINI_SCHEMA,
+  GEMINI_LEARNING_WIDGET_PLAN_SCHEMA: LEARNING_WIDGET_SCHEMA,
+  extractLastUserPrompt,
+  userWantsInteractiveWidget,
+} = require("../ai/learning-widget-schema");
 
 const PLAN_RETRIEVAL_SCHEMA = {
   type: "OBJECT",
@@ -250,6 +279,40 @@ function toGeminiContents(history) {
     .filter((entry) => entry.parts.length > 0);
 }
 
+const WIDGET_HISTORY_MAX_TURNS = 6;
+const WIDGET_HISTORY_MAX_TEXT = 2000;
+const WIDGET_SCREEN_CONTEXT_MAX = 1500;
+
+function toGeminiWidgetContents(history, { screenContext } = {}) {
+  const turns = history
+    .filter(messageHasContent)
+    .map((msg) => {
+      const text = String(msg.text || "").trim().slice(0, WIDGET_HISTORY_MAX_TEXT);
+      if (!text) return null;
+      return {
+        role: msg.sender === "user" ? "user" : "model",
+        parts: [{ text }],
+      };
+    })
+    .filter(Boolean)
+    .slice(-WIDGET_HISTORY_MAX_TURNS);
+
+  const context = String(screenContext || "").trim().slice(0, WIDGET_SCREEN_CONTEXT_MAX);
+  if (context) {
+    const last = turns[turns.length - 1];
+    if (last?.role === "user") {
+      last.parts.push({ text: `\n[SCREEN CONTEXT]\n${context}` });
+    } else {
+      turns.push({
+        role: "user",
+        parts: [{ text: `[SCREEN CONTEXT]\n${context}` }],
+      });
+    }
+  }
+
+  return turns;
+}
+
 function extractText(payload) {
   const parts = payload?.candidates?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
@@ -340,8 +403,9 @@ function buildRecipeBlock(recipe, { mode } = {}) {
       "\n\n[STUDY KNOWLEDGE BASE]\n" +
       sections +
       "\n\n[INSTRUCTION] The knowledge base above contains study material. " +
-      "Ground your explanation in these sources when relevant. " +
-      "Use a mermaid diagram in explanation when it helps the learner understand relationships or processes."
+      "Ground your answer in these sources when relevant. " +
+      "For classic widgets, use diagramCode for Mermaid when it helps and widgetSummary for a short overlay caption. " +
+      "For quiz, practice, test-me, or hands-on requests, use an interactive widgetType with widgetTitle and designPlan only — never HTML, CSS, or JS."
     );
   }
 
@@ -390,7 +454,7 @@ async function chat(history, { recipe, mode } = {}) {
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
   const systemPrompt = resolveSystemPrompt(mode) + buildRecipeBlock(recipe, { mode });
 
-  const response = await fetch(url, {
+  const response = await fetchGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -483,7 +547,7 @@ async function chatStep(
   const model = getModel();
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
 
-  const response = await fetch(url, {
+  const response = await fetchGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -519,6 +583,98 @@ async function chatStep(
   return { ...structured, model };
 }
 
+async function generateLearningWidget(history, { recipe, systemPrompt, screenContext } = {}) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY is not configured. Add it to your .env file.",
+    );
+  }
+
+  const contents = toGeminiWidgetContents(history, { screenContext }).map((entry) => ({
+    role: entry.role,
+    parts: [...entry.parts],
+  }));
+
+  if (!contents.length) {
+    throw new Error("No messages to send.");
+  }
+
+  const lastEntry = contents[contents.length - 1];
+  const userPrompt = extractLastUserPrompt(history);
+  const wantsInteractive = userWantsInteractiveWidget(userPrompt);
+  let planNudge =
+    "\n\nSelect widgetType. For classic, return explanation (full answer), optional diagramCode (raw Mermaid), and widgetSummary (brief overlay caption when diagramCode is set — not a duplicate of explanation). " +
+    "For interactive types, return widgetTitle, a full explanation, and designPlan only — no HTML, CSS, or JS.";
+  if (wantsInteractive) {
+    planNudge +=
+      "\n\nThe user asked for practice or quizzing — you MUST use an interactive widgetType " +
+      "(interactive-quiz, code-playground, or concept-graph) with a full explanation and complete designPlan " +
+      "(objective, contentOutline, userFlow, stateKeys, uiSections). Do not use classic.";
+  }
+  if (lastEntry.role === "user") {
+    lastEntry.parts.push({ text: planNudge });
+  } else {
+    contents.push({
+      role: "user",
+      parts: [{ text: planNudge }],
+    });
+  }
+
+  const model = getModel();
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
+  const instruction =
+    String(systemPrompt || "").trim() + buildRecipeBlock(recipe, { mode: "tutor" });
+
+  const response = await fetchGemini(
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: instruction }],
+        },
+        contents,
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: LEARNING_WIDGET_SCHEMA,
+        },
+      }),
+    },
+    getGeminiTimeoutMs("widget"),
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      payload?.error?.message ||
+      payload?.error ||
+      `Gemini tutor widget error (${response.status})`;
+    throw new Error(message);
+  }
+
+  const text = extractText(payload);
+  if (!text) {
+    throw new Error("Gemini returned an empty tutor widget response.");
+  }
+
+  const { parsed } = parseJsonFromModelText(text, { label: "Gemini tutor widget" });
+
+  const retrieval = recipe?.chunks?.length
+    ? {
+        ragQuery: recipe.ragQuery,
+        retrievalSource: recipe.retrievalSource,
+        sources: [...new Set(recipe.chunks.map((chunk) => chunk.source))],
+      }
+    : null;
+
+  return { object: parsed, model, retrieval, text };
+}
+
 async function planRetrieval(userMessage, history, { mode } = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -547,7 +703,7 @@ async function planRetrieval(userMessage, history, { mode } = {}) {
   const retrievalPrompt =
     mode === "tutor" ? TUTOR_PLAN_RETRIEVAL_SYSTEM_PROMPT : PLAN_RETRIEVAL_SYSTEM_PROMPT;
 
-  const response = await fetch(url, {
+  const response = await fetchGemini(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -591,6 +747,7 @@ async function planRetrieval(userMessage, history, { mode } = {}) {
 module.exports = {
   chat,
   chatStep,
+  generateLearningWidget,
   planRetrieval,
   normalizePlanItem,
   normalizeRetrievalPlan,
@@ -598,8 +755,11 @@ module.exports = {
   getModel,
   getRouterModel,
   RESPONSE_SCHEMA,
+  LEARNING_WIDGET_SCHEMA,
+  INTERACTIVE_WIDGET_GEMINI_SCHEMA,
   TUTOR_SYSTEM_PROMPT,
   TUTOR_PLAN_RETRIEVAL_SYSTEM_PROMPT,
   resolveSystemPrompt,
   buildRecipeBlock,
+  toGeminiWidgetContents,
 };
