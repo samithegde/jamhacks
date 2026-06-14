@@ -97,8 +97,9 @@ export function initVirtualCursor() {
     el.addEventListener("mouseleave", () => setClickThrough(true));
   }
 
-  attachHoverToggle(widget);
-  attachHoverToggle(promptControls);
+  attachHoverToggle(cancelBtn);
+  attachHoverToggle(doneBtn);
+  attachHoverToggle(completeBtn);
 
   let state = { ...DEFAULTS };
   let revealTimer = null;

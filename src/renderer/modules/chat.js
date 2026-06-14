@@ -1250,7 +1250,6 @@ async function executeHybridLoop(goal, firstStep) {
 
   let currentStep = firstStep;
   let stepNumber = 1;
-  let prefetchedCapture = null;
 
   try {
     while (currentStep && stepNumber <= MAX_HYBRID_STEPS && !promptLoopCancelled && !aiCancelled) {
@@ -1263,8 +1262,6 @@ async function executeHybridLoop(goal, firstStep) {
       assertNotCancelled();
       await executeSingleStep(refinedStep, { stepIndex: stepNumber });
       if (promptLoopCancelled || aiCancelled) break;
-
-      prefetchedCapture = captureScreenBase64();
 
       const isLastStep = Boolean(currentStep.isFinal);
 
@@ -1295,10 +1292,8 @@ async function executeHybridLoop(goal, firstStep) {
 
       if (promptLoopCancelled || aiCancelled) break;
 
-      const screenshotBase64 = prefetchedCapture
-        ? await prefetchedCapture
-        : await captureScreenBase64();
-      prefetchedCapture = null;
+      // Capture AFTER the user has done the action so Gemini sees the updated screen.
+      const screenshotBase64 = await captureScreenBase64();
       assertNotCancelled();
 
       const response = await window.geminiChat.step({
@@ -1326,7 +1321,6 @@ async function executeHybridLoop(goal, firstStep) {
       }
     }
   } finally {
-    prefetchedCapture = null;
     resetPromptLoopState();
     await window.aiTools.hideNextButton();
     await window.aiTools.clearHighlights();

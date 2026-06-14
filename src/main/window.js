@@ -230,8 +230,8 @@ function createChatWindow() {
     skipTaskbar: true,
     autoHideMenuBar: true,
     hasShadow: false,
-    backgroundColor: "#00000000",
-    ...(process.platform === "win32" ? { thickFrame: true, roundedCorners: true } : {}),
+    backgroundColor: "#060A18",
+    ...(process.platform === "win32" ? { thickFrame: false, roundedCorners: true } : {}),
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       nodeIntegration: false,
@@ -254,10 +254,13 @@ function createChatWindow() {
     broadcastAssistantAccessibilityPreferences();
   });
 
-  chatWindow.once("ready-to-show", () => {
+  chatWindow.once("ready-to-show", async () => {
+    await setNoRedirectionBitmap(chatWindow);
     chatWindow.show();
     keepWindowOffTaskbar(chatWindow);
   });
+
+  chatWindow.on("show", () => setNoRedirectionBitmap(chatWindow));
 
   chatWindow.on("focus", () => keepWindowOffTaskbar(chatWindow));
   chatWindow.on("closed", () => {
