@@ -19,22 +19,60 @@
   top: 0;
   width: 0;
   height: 0;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-left: 14px solid #f8fafc;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 16px solid #c4b5fd;
+  filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.6)) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
   transform: translate(-2px, -2px);
+  animation: cursor-pulse 2s ease-in-out infinite;
 }
 
 .ai-cursor-ring {
   position: absolute;
-  left: 10px;
-  top: 10px;
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(178, 35, 227, 0.95);
+  left: 8px;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid #c4b5fd;
   border-radius: 999px;
-  box-shadow: 0 0 0 4px rgba(178, 35, 227, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.4),
+    0 0 12px rgba(196, 181, 253, 0.5),
+    0 0 24px rgba(124, 58, 237, 0.3) inset;
+  animation: cursor-ring-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes cursor-pulse {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.6)) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(196, 181, 253, 0.8)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  }
+  100% {
+    filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.6)) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  }
+}
+
+@keyframes cursor-ring-pulse {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(124, 58, 237, 0.4),
+      0 0 12px rgba(196, 181, 253, 0.5),
+      0 0 24px rgba(124, 58, 237, 0.3) inset;
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(124, 58, 237, 0.6),
+      0 0 16px rgba(196, 181, 253, 0.7),
+      0 0 32px rgba(124, 58, 237, 0.5) inset;
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(124, 58, 237, 0.4),
+      0 0 12px rgba(196, 181, 253, 0.5),
+      0 0 24px rgba(124, 58, 237, 0.3) inset;
+  }
 }
 
 .ai-step-widget {
@@ -142,28 +180,30 @@
 .ai-step-widget__header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .ai-step-widget__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.25);
+  background: rgba(196, 181, 253, 0.2);
   color: #c4b5fd;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
 }
 
 .ai-step-widget__badge {
-  font: 700 10px/1 var(--title-font);
-  letter-spacing: 0.08em;
+  font: 700 11px/1.2 var(--title-font);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #c4b5fd;
+  display: block;
+  min-height: 14px;
 }
 
 .ai-step-widget__badge:empty {
@@ -263,18 +303,21 @@
 }
 
 body.accessibility-magnify .ai-cursor-pointer {
-  border-top-width: 12px;
-  border-bottom-width: 12px;
-  border-left-width: 22px;
+  border-top-width: 14px;
+  border-bottom-width: 14px;
+  border-left-width: 24px;
 }
 
 body.accessibility-magnify .ai-cursor-ring {
-  left: 16px;
-  top: 16px;
-  width: 28px;
-  height: 28px;
+  left: 14px;
+  top: 14px;
+  width: 36px;
+  height: 36px;
   border-width: 3px;
-  box-shadow: 0 0 0 7px rgba(178, 35, 227, 0.22);
+  box-shadow:
+    0 0 0 2px rgba(124, 58, 237, 0.5),
+    0 0 16px rgba(196, 181, 253, 0.6),
+    0 0 40px rgba(124, 58, 237, 0.4) inset;
 }
 
 body.accessibility-magnify .ai-step-widget__card {
@@ -307,14 +350,15 @@ body.accessibility-large-text .ai-step-widget__text {
 
 body.accessibility-high-contrast .ai-cursor-pointer {
   border-left-color: #ffffff;
-  filter: drop-shadow(0 0 0 #000000) drop-shadow(0 3px 6px #000000);
+  filter: drop-shadow(0 0 12px #facc15) drop-shadow(0 4px 8px #000000) drop-shadow(0 0 4px #000000);
 }
 
 body.accessibility-high-contrast .ai-cursor-ring {
   border-color: #facc15;
   box-shadow:
-    0 0 0 4px #000000,
-    0 0 0 8px rgba(250, 204, 21, 0.45);
+    0 0 0 2px #000000,
+    0 0 16px #facc15,
+    0 0 32px rgba(250, 204, 21, 0.6) inset;
 }
 
 body.accessibility-high-contrast .ai-step-widget__card {

@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut } = require("electron");
 const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows, showDashboardWindow, DASHBOARD_ENABLED } = require("./window");
 const { registerIpcHandlers } = require("./ipc");
 const { restoreWindowsTaskbar } = require("./utils/taskbar");
@@ -35,12 +35,8 @@ let isQuitting = false;
 function createTray() {
   if (tray) return tray;
 
-  // 16x16 white circle icon (base64 png) as a fallback tray icon.
-  const icon = nativeImage
-    .createFromDataURL(
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAUVBMVEUAAAD///////////////////////////////////////////////////////////////+ZmZmampqfn5+YmJihoaGhoaGAgIC+vr6UlJSEhIS7u7u5ubmWlpbDw8PW1tba2tq3t7fGxsaXl5evr6+qqqp6SGXAAAAAAXRSTlMAQObYZgAAAFpJREFUGNNVz1kSgCAIBNCW3f//Z1fR0QzA5hRtnQwA+4KEm9UiEAu1fHTYvM6v3lN0ptYxYWSmpuQkMHSppfowx0lGdU4mS7S2mQ5srbx5Nm0vP1QoUd8KBFWAvwBz7wV3m1XQ8wAAAABJRU5ErkJggg=="
-    )
-    .resize({ width: 16, height: 16 });
+  const iconPath = path.join(__dirname, "../renderer/assets/clarityicon.png");
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
 
   tray = new Tray(icon);
   tray.setToolTip("Clarity");
@@ -81,6 +77,8 @@ app.whenReady().then(async () => {
   createWindows();
   createTray();
 
+  globalShortcut.register("CommandOrControl+Alt+C", () => toggleChatWindow());
+
   if (DASHBOARD_ENABLED) {
     showDashboardWindow();
   }
@@ -109,5 +107,6 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
   closeMongoConnection().catch(() => {});
 });

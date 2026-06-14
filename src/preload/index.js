@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld("chatWindow", {
   minimize: () => ipcRenderer.invoke("window:minimize-chat"),
   resizeTo: (width, height) =>
     ipcRenderer.invoke("window:resize-chat", { width, height }),
+  setTasksDrawerOpen: (open) =>
+    ipcRenderer.invoke("window:set-chat-tasks-drawer", Boolean(open)),
 });
 
 contextBridge.exposeInMainWorld("minichat", {
