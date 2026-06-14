@@ -746,19 +746,6 @@
         <div class="top-bar">
             <div class="top-bar-title" id="pageTitle">Dashboard</div>
             <div id="error" class="error-box" style="display: none; margin: 0; position: absolute; bottom: 10px; right: 30px; width: auto;"></div>
-            <div class="top-bar-actions">
-                <button class="window-btn minimize-btn" onclick="minimizeWindow()" title="Minimize">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
-                <button class="window-btn close-btn" onclick="closeWindow()" title="Close">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
         </div>
 
         <div class="content-area" id="contentArea">
@@ -945,14 +932,6 @@
                                 <div class="toggle-switch" id="largeTextToggle" onclick="toggleAccessibilityFeature('largeText', this)"></div>
                             </div>
                             <div class="card-description">Increase overlay guidance text for better readability</div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-title">Audio</div>
-                                <div class="toggle-switch" id="audioToggle" onclick="toggleAccessibilityFeature('audio', this)"></div>
-                            </div>
-                            <div class="card-description">Enable overlay audio feedback for guidance and highlights</div>
                         </div>
 
                         <div class="card">
@@ -1306,7 +1285,7 @@
         }
 
         function getAccessibilityPreferencesFromUI() {
-            const features = ['largeText', 'audio', 'magnify', 'screenReader', 'voiceControl', 'highContrast'];
+            const features = ['largeText', 'screenReader', 'magnify', 'highContrast'];
             return features.reduce((preferences, feature) => {
                 preferences[feature] = document
                     .getElementById(`${feature}Toggle`)
@@ -1316,7 +1295,7 @@
         }
 
         function renderAccessibilityPreferences(preferences = {}) {
-            const features = ['largeText', 'audio', 'magnify', 'screenReader', 'voiceControl', 'highContrast'];
+            const features = ['largeText', 'screenReader', 'magnify', 'highContrast'];
 
             features.forEach((feature) => {
                 const toggle = document.getElementById(`${feature}Toggle`);

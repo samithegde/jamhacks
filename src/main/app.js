@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut } = require("electron");
-const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows, showDashboardWindow, DASHBOARD_ENABLED } = require("./window");
+const { createWindows, toggleChatWindow, showChatWindow, cleanupWindows, showDashboardWindow, getChatWindow, getDashboardWindow, DASHBOARD_ENABLED } = require("./window");
+const { sendCtrlC } = require("./utils/win32-chrome");
 const { registerIpcHandlers } = require("./ipc");
 const { restoreWindowsTaskbar } = require("./utils/taskbar");
 const { configureCaptureSession } = require("./capture/session");

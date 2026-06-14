@@ -1,7 +1,5 @@
 const { execFile } = require("child_process");
 
-let chromeReady = null;
-
 function runPowerShell(script) {
   return new Promise((resolve, reject) => {
     execFile(
@@ -25,53 +23,50 @@ function getNativeHwnd(window) {
   return BigInt(handle.readUInt32LE(0));
 }
 
-function ensureWin32Chrome() {
-  if (process.platform !== "win32") return Promise.resolve();
-  if (!chromeReady) {
-    chromeReady = runPowerShell(`
-      Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class Win32Chrome {
-  [StructLayout(LayoutKind.Sequential)]
-  public struct MARGINS {
-    public int cxLeftWidth, cxRightWidth, cyTopHeight, cyBottomHeight;
-  }
-  [DllImport("dwmapi.dll")] public static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS pMarInset);
-  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-  [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-  const int GWL_STYLE = -16;
-  const int WS_CAPTION = 0x00C00000;
-  const int WS_THICKFRAME = 0x00040000;
-  const uint SWP_FRAMECHANGED = 0x0020;
-  const uint SWP_NOMOVE = 0x0002;
-  const uint SWP_NOSIZE = 0x0001;
-  const uint SWP_NOZORDER = 0x0004;
-  public static void HideTitleBar(IntPtr hWnd) {
-    var style = GetWindowLong(hWnd, GWL_STYLE);
-    SetWindowLong(hWnd, GWL_STYLE, style & ~WS_CAPTION & ~WS_THICKFRAME);
-    var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
-    DwmExtendFrameIntoClientArea(hWnd, ref margins);
-    SetWindowPos(hWnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-  }
-}
-"@
-    `).catch(() => {});
-  }
-  return chromeReady;
-}
+// Each function compiles + executes in one PowerShell process so the type is
+// available when the method is called.
 
-function hideNativeTitleBar(window) {
+function setNoRedirectionBitmap(window) {
   if (process.platform !== "win32") return Promise.resolve();
-
   const hwnd = getNativeHwnd(window);
   if (hwnd === null) return Promise.resolve();
 
-  return ensureWin32Chrome()
-    .then(() =>
-      runPowerShell(`[Win32Chrome]::HideTitleBar([IntPtr]${hwnd})`).catch(() => {})
-    );
+  return runPowerShell(`
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Win32NRB {
+  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int n, int v);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr h2, int x, int y, int cx, int cy, uint f);
+  public static void Run(IntPtr h) {
+    SetWindowLong(h, -20, GetWindowLong(h, -20) | 0x00200000);
+    SetWindowPos(h, IntPtr.Zero, 0, 0, 0, 0, 0x0027);
+  }
+}
+"@
+[Win32NRB]::Run([IntPtr]${hwnd.toString()})
+  `).catch(() => {});
 }
 
-module.exports = { hideNativeTitleBar };
+function sendCtrlC() {
+  if (process.platform !== "win32") return Promise.resolve();
+  return runPowerShell(`
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Win32Keys {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra);
+  public static void CtrlC() {
+    keybd_event(0x11, 0, 0, IntPtr.Zero);
+    keybd_event(0x43, 0, 0, IntPtr.Zero);
+    keybd_event(0x43, 0, 2, IntPtr.Zero);
+    keybd_event(0x11, 0, 2, IntPtr.Zero);
+  }
+}
+"@
+[Win32Keys]::CtrlC()
+  `).catch(() => {});
+}
+
+module.exports = { setNoRedirectionBitmap, sendCtrlC };
