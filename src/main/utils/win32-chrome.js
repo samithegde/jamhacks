@@ -33,26 +33,18 @@ function ensureWin32Chrome() {
 using System;
 using System.Runtime.InteropServices;
 public class Win32Chrome {
-  [StructLayout(LayoutKind.Sequential)]
-  public struct MARGINS {
-    public int cxLeftWidth, cxRightWidth, cyTopHeight, cyBottomHeight;
-  }
-  [DllImport("dwmapi.dll")] public static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS pMarInset);
   [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
   [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-  const int GWL_STYLE = -16;
-  const int WS_CAPTION = 0x00C00000;
-  const int WS_THICKFRAME = 0x00040000;
+  const int GWL_EXSTYLE = -20;
+  const int WS_EX_NOREDIRECTIONBITMAP = 0x00200000;
   const uint SWP_FRAMECHANGED = 0x0020;
   const uint SWP_NOMOVE = 0x0002;
   const uint SWP_NOSIZE = 0x0001;
   const uint SWP_NOZORDER = 0x0004;
-  public static void HideTitleBar(IntPtr hWnd) {
-    var style = GetWindowLong(hWnd, GWL_STYLE);
-    SetWindowLong(hWnd, GWL_STYLE, style & ~WS_CAPTION & ~WS_THICKFRAME);
-    var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
-    DwmExtendFrameIntoClientArea(hWnd, ref margins);
+  public static void SetNoRedirectionBitmap(IntPtr hWnd) {
+    var style = GetWindowLong(hWnd, GWL_EXSTYLE);
+    SetWindowLong(hWnd, GWL_EXSTYLE, style | WS_EX_NOREDIRECTIONBITMAP);
     SetWindowPos(hWnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
   }
 }
@@ -62,7 +54,7 @@ public class Win32Chrome {
   return chromeReady;
 }
 
-function hideNativeTitleBar(window) {
+function setNoRedirectionBitmap(window) {
   if (process.platform !== "win32") return Promise.resolve();
 
   const hwnd = getNativeHwnd(window);
@@ -70,8 +62,8 @@ function hideNativeTitleBar(window) {
 
   return ensureWin32Chrome()
     .then(() =>
-      runPowerShell(`[Win32Chrome]::HideTitleBar([IntPtr]${hwnd})`).catch(() => {})
+      runPowerShell(`[Win32Chrome]::SetNoRedirectionBitmap([IntPtr]${hwnd})`).catch(() => {})
     );
 }
 
-module.exports = { hideNativeTitleBar };
+module.exports = { setNoRedirectionBitmap };

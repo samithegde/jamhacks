@@ -1080,3 +1080,33 @@
 .chat-window-body.chat-accessibility-high-contrast .chat-input-wrap {
   border-color: #facc15;
 }
+
+.alt-tts-badge {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px 5px 10px;
+  background: rgba(124, 58, 237, 0.92);
+  color: #fff;
+  font: 600 12px/1.4 var(--title-font);
+  border-radius: 999px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  white-space: nowrap;
+}
+
+.alt-tts-badge .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 20;
+}
+
+.alt-tts-badge.hidden {
+  opacity: 0;
+}

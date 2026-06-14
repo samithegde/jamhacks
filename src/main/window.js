@@ -1,7 +1,7 @@
 const { BrowserWindow, screen } = require("electron");
 const path = require("path");
 const { getWorkAreaBounds } = require("./utils/display");
-const { hideNativeTitleBar } = require("./utils/win32-chrome");
+const { setNoRedirectionBitmap } = require("./utils/win32-chrome");
 
 const CHAT_WIDTH = 420;
 const CHAT_HEIGHT = 650;
@@ -114,7 +114,7 @@ function getOverlayBoundsForDisplay(display) {
 async function applyOverlayWindowChrome(win) {
   if (!win || win.isDestroyed()) return;
   win.setTitle("");
-  await hideNativeTitleBar(win);
+  await setNoRedirectionBitmap(win);
 }
 
 async function showOverlayWindow(win) {
