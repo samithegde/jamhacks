@@ -770,11 +770,76 @@ async function planRetrieval(userMessage, history, { mode } = {}) {
   }
 }
 
+const REFINE_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    x: { type: "INTEGER", description: "X pixel coordinate of the element center within the cropped image" },
+    y: { type: "INTEGER", description: "Y pixel coordinate of the element center within the cropped image" },
+  },
+  required: ["x", "y"],
+};
+
+const REFINE_SYSTEM_PROMPT =
+  "You are a pixel-accurate UI element locator. You will receive a cropped screenshot and a description of a UI element. " +
+  "Return the EXACT center pixel coordinates of that element within THIS CROPPED IMAGE. " +
+  "Coordinates must be integers within the image bounds. If the element is partially cut off, return the visible center.";
+
+async function refineCoordinate({ description, croppedBase64, cropW, cropH }) {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
+
+  const model = getModel();
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: REFINE_SYSTEM_PROMPT }] },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: croppedBase64.replace(/^data:image\/\w+;base64,/, ""),
+              },
+            },
+            {
+              text: `Image size: ${cropW}×${cropH} px. Find the center of: "${description}". Return pixel coordinates within this crop.`,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: REFINE_RESPONSE_SCHEMA,
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `Gemini refine error (${response.status})`);
+  }
+
+  const text = extractText(payload);
+  if (!text) throw new Error("Gemini refine returned empty response.");
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("Gemini refine returned invalid JSON.");
+  }
+}
+
 module.exports = {
   chat,
   chatStep,
   generateLearningWidget,
   planRetrieval,
+  refineCoordinate,
   normalizePlanItem,
   normalizeRetrievalPlan,
   getApiKey,

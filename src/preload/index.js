@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("whisper", {
 contextBridge.exposeInMainWorld("geminiChat", {
   send: (payload) => ipcRenderer.invoke("chat:send", payload),
   step: (payload) => ipcRenderer.invoke("chat:step", payload),
+  refine: (payload) => ipcRenderer.invoke("chat:refine", payload),
   onRagStatus: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on("chat:rag-status", handler);
@@ -71,6 +72,12 @@ contextBridge.exposeInMainWorld("chatWindow", {
     ipcRenderer.invoke("window:resize-chat", { width, height }),
   setTasksDrawerOpen: (open) =>
     ipcRenderer.invoke("window:set-chat-tasks-drawer", Boolean(open)),
+  capturePage: () => ipcRenderer.invoke("window:capture-page"),
+});
+
+contextBridge.exposeInMainWorld("overlayControl", {
+  setClickThrough: (passThrough) =>
+    ipcRenderer.invoke("window:set-click-through", passThrough),
 });
 
 contextBridge.exposeInMainWorld("minichat", {

@@ -1455,8 +1455,6 @@ async function executeHybridLoop(goal, firstStep) {
       });
       if (promptLoopCancelled || aiCancelled) break;
 
-      prefetchedCapture = captureScreenBase64();
-
       const isLastStep = Boolean(currentStep.isFinal);
 
       if (isLastStep) {
@@ -1486,10 +1484,8 @@ async function executeHybridLoop(goal, firstStep) {
 
       if (promptLoopCancelled || aiCancelled) break;
 
-      const screenshotBase64 = prefetchedCapture
-        ? await prefetchedCapture
-        : await captureScreenBase64();
-      prefetchedCapture = null;
+      // Capture AFTER the user has done the action so Gemini sees the updated screen.
+      const screenshotBase64 = await captureScreenBase64();
       assertNotCancelled();
 
       const response = await window.geminiChat.step({
@@ -1520,7 +1516,6 @@ async function executeHybridLoop(goal, firstStep) {
       }
     }
   } finally {
-    prefetchedCapture = null;
     resetPromptLoopState();
     await window.aiTools.hideNextButton();
     await window.aiTools.clearHighlights();
@@ -1801,11 +1796,15 @@ async function runCommand(text) {
 }
 
 function hideChatWindow() {
-  window.chatWindow?.hide?.();
+  import("./genie.js").then(({ playGenieClose }) =>
+    playGenieClose().then(() => window.chatWindow?.hide?.())
+  ).catch(() => window.chatWindow?.hide?.());
 }
 
 function minimizeChatWindow() {
-  window.chatWindow?.minimize?.();
+  import("./genie.js").then(({ playGenieClose }) =>
+    playGenieClose().then(() => window.chatWindow?.minimize?.())
+  ).catch(() => window.chatWindow?.minimize?.());
 }
 
 function initChatResizeGrip() {

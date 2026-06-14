@@ -1,7 +1,7 @@
 const {
   chat,
   chatStep,
-  planRetrieval,
+  planRetrieval, refineCoordinate,
   generateTutorWidget,
   getActiveProvider,
 } = require("../ai/provider");
@@ -469,143 +469,12 @@ function registerChatIpc(ipcMain) {
     if (!goal) {
 
       throw new Error("goal is required.");
-
     }
 
-
-
-    const mode = payload?.mode === "tutor" ? "tutor" : sessionMode || "navigation";
-
-    const sessionId = payloadSessionId || activitySessionId;
-
-    const provider = getActiveProvider();
-
-
-
-    recordActivity({
-
-      sessionId,
-
-      phase: "model.request",
-
-      message: `Planning next step after "${truncate(lastAction || "previous action", 100)}".`,
-
-      detail: {
-
-        goal: truncate(goal, 160),
-
-        hasScreenshot: Boolean(screenshotBase64),
-
-        completedStepCount: Array.isArray(completedActions) ? completedActions.length : 0,
-
-        provider,
-
-        mode,
-
-      },
-
+    return chatStep(goal, lastAction ?? "", screenshotBase64 ?? null, {
+      recipe: sessionRecipe,
     });
-
-
-
-    try {
-
-      const result = await chatStep(goal, lastAction ?? "", screenshotBase64 ?? null, {
-
-        recipe: sessionRecipe,
-
-        mode,
-
-        completedActions,
-
-      });
-
-
-
-      logModelResponse(sessionId, result, { phase: "model.step" });
-
-
-
-      recordChatEvent({
-
-        event: "chat.step",
-
-        success: true,
-
-        provider,
-
-        model: result.model,
-
-        mode,
-
-        durationMs: Date.now() - startedAt,
-
-        meta: {
-
-          goalLength: goal.length,
-
-          lastActionLength: String(lastAction || "").length,
-
-          planLength: result.plan?.length ?? 0,
-
-          hasScreenshot: Boolean(screenshotBase64),
-
-        },
-
-      });
-
-
-
-      return { ...result, activitySessionId: sessionId };
-
-    } catch (error) {
-
-      recordActivity({
-
-        sessionId,
-
-        phase: "error",
-
-        level: "error",
-
-        message: `Step planning failed: ${error.message}`,
-
-      });
-
-
-
-      recordChatEvent({
-
-        event: "chat.step",
-
-        success: false,
-
-        provider,
-
-        mode,
-
-        durationMs: Date.now() - startedAt,
-
-        error: error.message,
-
-        meta: {
-
-          goalLength: goal.length,
-
-          lastActionLength: String(lastAction || "").length,
-
-          hasScreenshot: Boolean(screenshotBase64),
-
-        },
-
-      });
-
-      throw error;
-
-    }
-
   });
-
 }
 
-module.exports = { registerChatIpc, buildRecipe };
+module.exports = { registerChatIpc };
