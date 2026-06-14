@@ -1,4 +1,4 @@
-const { chat, chatStep, planRetrieval } = require("../gemini/service");
+const { chat, chatStep, planRetrieval, refineCoordinate } = require("../gemini/service");
 const { retrieve } = require("../rag/retrieve");
 const { resolveCollection } = require("../rag/collections");
 const { getStats } = require("../rag/store");
@@ -60,6 +60,14 @@ function registerChatIpc(ipcMain) {
     return chatStep(goal, lastAction ?? "", screenshotBase64 ?? null, {
       recipe: sessionRecipe,
     });
+  });
+
+  ipcMain.handle("chat:refine", async (_event, payload) => {
+    const { description, croppedBase64, cropW, cropH } = payload ?? {};
+    if (!description || !croppedBase64) {
+      throw new Error("description and croppedBase64 are required.");
+    }
+    return refineCoordinate({ description, croppedBase64, cropW, cropH });
   });
 }
 

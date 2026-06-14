@@ -294,6 +294,38 @@
   color: #cbd5e1;
 }
 
+.ai-step-widget__footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ai-step-widget__footer.hidden {
+  display: none;
+}
+
+.ai-step-widget__done-btn {
+  padding: 5px 12px;
+  border: 1px solid rgba(124, 58, 237, 0.6);
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.18);
+  color: #c4b5fd;
+  font: 600 12px/1.4 Inter, system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 120ms ease, border-color 120ms ease, transform 100ms ease;
+}
+
+.ai-step-widget__done-btn:hover {
+  background: rgba(124, 58, 237, 0.35);
+  border-color: rgba(196, 181, 253, 0.8);
+  transform: scale(1.04);
+}
+
+.ai-step-widget__done-btn:active {
+  transform: scale(0.97);
+}
+
 .ai-step-widget.is-entering {
   animation: step-widget-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }

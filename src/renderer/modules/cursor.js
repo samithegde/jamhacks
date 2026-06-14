@@ -80,6 +80,25 @@ export function initVirtualCursor() {
   const promptControls = document.getElementById("ai-prompt-controls");
   const completeBtn = document.getElementById("ai-complete-btn");
   const cancelBtn = document.getElementById("ai-cancel-btn");
+  const widgetFooter = document.getElementById("ai-step-widget-footer");
+  const doneBtn = document.getElementById("ai-done-btn");
+
+  // Per-element mouse passthrough: overlay window is always click-through so
+  // the user can click the actual target element on screen. When the mouse
+  // enters an interactive widget we temporarily disable click-through so the
+  // buttons inside it are clickable.
+  function setClickThrough(passThrough) {
+    window.overlayControl?.setClickThrough(passThrough);
+  }
+
+  function attachHoverToggle(el) {
+    if (!el) return;
+    el.addEventListener("mouseenter", () => setClickThrough(false));
+    el.addEventListener("mouseleave", () => setClickThrough(true));
+  }
+
+  attachHoverToggle(widget);
+  attachHoverToggle(promptControls);
 
   let state = { ...DEFAULTS };
   let revealTimer = null;
@@ -306,26 +325,36 @@ export function initVirtualCursor() {
       };
     }
 
-    function showNextMode(payload = {}) {
-      nextClickTarget = getNextClickTarget(payload);
-      promptControls.classList.add("hidden");
+    function showDoneButton() {
+      widgetFooter?.classList.remove("hidden");
       constrainLayout();
+    }
+
+    function hideDoneButton() {
+      widgetFooter?.classList.add("hidden");
     }
 
     function hidePromptControls() {
       clearNextClickTarget();
       promptControls.classList.add("hidden");
+      completeBtn?.classList.add("hidden");
+      hideDoneButton();
       if (widget && !widget.classList.contains("hidden")) {
         constrainLayout();
       }
     }
 
     window.aiTools?.onNextButtonShow((payload) => {
-      showNextMode(payload);
+      nextClickTarget = getNextClickTarget(payload);
+      promptControls.classList.add("hidden");
+      showDoneButton();
     });
 
     window.aiTools?.onCompleteButtonShow(() => {
-      showNextMode();
+      hideDoneButton();
+      promptControls.classList.remove("hidden");
+      completeBtn?.classList.remove("hidden");
+      constrainLayout();
     });
 
     window.aiTools?.onNextButtonHide(() => {
@@ -337,16 +366,14 @@ export function initVirtualCursor() {
       window.aiTools?.emitPromptCancelled();
     });
 
-    document.addEventListener("click", (event) => {
-      if (!nextClickTarget) return;
-      if (event.target?.closest?.("#ai-cancel-btn")) return;
-
-      const dx = event.clientX - nextClickTarget.x;
-      const dy = event.clientY - nextClickTarget.y;
-      if (Math.hypot(dx, dy) > nextClickTarget.radius) return;
-
+    doneBtn?.addEventListener("click", () => {
       hidePromptControls();
       window.aiTools?.emitNextClicked();
+    });
+
+    completeBtn?.addEventListener("click", () => {
+      hidePromptControls();
+      window.aiTools?.emitCompleteClicked();
     });
   }
 

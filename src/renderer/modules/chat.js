@@ -1482,11 +1482,15 @@ async function runCommand(text) {
 }
 
 function hideChatWindow() {
-  window.chatWindow?.hide?.();
+  import("./genie.js").then(({ playGenieClose }) =>
+    playGenieClose().then(() => window.chatWindow?.hide?.())
+  ).catch(() => window.chatWindow?.hide?.());
 }
 
 function minimizeChatWindow() {
-  window.chatWindow?.minimize?.();
+  import("./genie.js").then(({ playGenieClose }) =>
+    playGenieClose().then(() => window.chatWindow?.minimize?.())
+  ).catch(() => window.chatWindow?.minimize?.());
 }
 
 function initChatResizeGrip() {

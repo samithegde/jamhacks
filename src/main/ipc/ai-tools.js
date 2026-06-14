@@ -62,7 +62,8 @@ function registerAiToolsIpc(ipcMain) {
 
   ipcMain.handle("ai-tools:show-next-button", async (_event, payload = {}) => {
     await showOverlay();
-    setOverlayInteractivity(true);
+    // Do NOT make the whole overlay interactive — the overlay uses per-element
+    // hover toggling so the underlying app remains clickable at all times.
     await sendOverlayPointAction("ai:next-button:show", payload);
     return { ok: true };
   });
@@ -75,7 +76,7 @@ function registerAiToolsIpc(ipcMain) {
 
   ipcMain.handle("ai-tools:show-complete-button", async () => {
     await showOverlay();
-    setOverlaysInteractive(true);
+    // Same — no global interactive; overlay handles it per-element.
     sendToOverlays("ai:complete-button:show");
     return { ok: true };
   });
